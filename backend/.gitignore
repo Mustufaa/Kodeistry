@@ -9,6 +9,9 @@ venv/
 .mypy_cache/
 .coverage
 htmlcov/
+tests/
+output.txt
+.tmp_*.py
 dist/
 build/
 *.egg-info/
