@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field
@@ -64,4 +65,36 @@ class ReviewResult(BaseModel):
 
     lines_reviewed: int = Field(
         ge=0,
+    )
+
+
+class ReviewRunResponse(BaseModel):
+    """
+    Summary of a completed or processed review run.
+    """
+
+    id: int
+
+    repository_id: int
+
+    pull_request_number: int
+
+    commit_sha: str
+
+    status: str
+
+    findings_count: int
+
+    created_at: datetime
+
+    completed_at: datetime | None = None
+
+
+class ReviewRunDetailResponse(ReviewRunResponse):
+    """
+    Detailed review run including individual findings.
+    """
+
+    findings: list[ReviewFinding] = Field(
+        default_factory=list,
     )

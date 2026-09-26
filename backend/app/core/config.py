@@ -1,4 +1,60 @@
 from decouple import config
+from urllib.parse import urlsplit
+
+
+def _validate_secret_key(secret_key: str) -> str:
+    normalized_key = secret_key.strip().lower()
+    placeholder_markers = (
+        "change-me",
+        "changeme",
+        "your_",
+        "secret",
+        "password",
+        "placeholder",
+        "example",
+        "test-secret",
+    )
+
+    if (
+        len(secret_key.encode("utf-8")) < 32
+        or len(set(secret_key)) < 16
+        or any(marker in normalized_key for marker in placeholder_markers)
+    ):
+        raise ValueError(
+            "SECRET_KEY must be at least 32 bytes and must not be "
+            "a placeholder or low-complexity value."
+        )
+
+    return secret_key
+
+
+def _parse_cors_allowed_origins(value: str) -> list[str]:
+    origins = [origin.strip() for origin in value.split(",") if origin.strip()]
+    for origin in origins:
+        parsed = urlsplit(origin)
+        try:
+            parsed.port
+        except ValueError:
+            raise ValueError(
+                "CORS_ALLOWED_ORIGINS must contain explicit HTTP(S) origins; "
+                "wildcard origins are not allowed."
+            ) from None
+        if (
+            origin == "*"
+            or parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+            or parsed.username
+            or parsed.password
+            or parsed.netloc.endswith(":")
+        ):
+            raise ValueError(
+                "CORS_ALLOWED_ORIGINS must contain explicit HTTP(S) origins; "
+                "wildcard origins are not allowed."
+            )
+    return origins
 
 
 class Settings:
@@ -10,15 +66,24 @@ class Settings:
     DATABASE_URL: str = config(
         "DATABASE_URL"
     )
+    DATABASE_ECHO: bool = config(
+        "DATABASE_ECHO",
+        cast=bool,
+        default=False,
+    )
+    CORS_ALLOWED_ORIGINS: list[str] = _parse_cors_allowed_origins(
+        config(
+            "CORS_ALLOWED_ORIGINS",
+            default="http://localhost:3000",
+        )
+    )
 
 
     # ============================================================
     # JWT
     # ============================================================
 
-    SECRET_KEY: str = config(
-        "SECRET_KEY"
-    )
+    SECRET_KEY: str = _validate_secret_key(config("SECRET_KEY"))
 
     ALGORITHM: str = config(
         "ALGORITHM",

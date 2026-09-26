@@ -31,7 +31,7 @@ async def send_verification_email(
     )
 
     html = f"""
-    <h2>Welcome to CodeFlow</h2>
+    <h2>Welcome to Kodeistry</h2>
 
     <p>Click the button below to verify your email.</p>
 
@@ -48,7 +48,7 @@ async def send_verification_email(
     """
 
     message = MessageSchema(
-        subject="Verify your CodeFlow account",
+        subject="Verify your Kodeistry account",
         recipients=[email],
         body=html,
         subtype=MessageType.html,
@@ -90,7 +90,7 @@ async def send_password_reset_email(
     """
 
     message = MessageSchema(
-        subject="Reset your CodeFlow password",
+        subject="Reset your Kodeistry password",
         recipients=[email],
         body=html,
         subtype=MessageType.html,

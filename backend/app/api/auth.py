@@ -20,9 +20,12 @@ from app.crud.user import (
     get_user_by_reset_token,
     authenticate_user,
 )
+from app.crud.tenant import create_personal_workspace
 
-from app.core.auth import create_access_token
+from app.core.auth import create_access_token, get_current_user
 from app.core.security import hash_password
+from app.models.user import User
+from app.schemas.tenant import CurrentUserResponse, TenantResponse
 
 from app.services.token_service import generate_token
 
@@ -70,12 +73,15 @@ async def register(
         + timedelta(minutes=30)
     )
 
-    db_user = await create_user(
-        db=db,
-        user=user,
-        verification_token=verification_token,
-        verification_token_expiry=verification_token_expiry,
-    )
+    await db.rollback()
+    async with db.begin():
+        db_user = await create_user(
+            db=db,
+            user=user,
+            verification_token=verification_token,
+            verification_token_expiry=verification_token_expiry,
+        )
+        personal_workspace = await create_personal_workspace(db, db_user)
 
     await send_verification_email(
         db_user.email,
@@ -86,8 +92,16 @@ async def register(
         "message": (
             "Registration successful. "
             "Please check your email to verify your account."
-        )
+        ),
+        "workspace": TenantResponse.model_validate(personal_workspace).model_dump(),
     }
+
+
+@router.get("/me", response_model=CurrentUserResponse)
+async def get_current_user_profile(
+    current_user: User = Depends(get_current_user),
+):
+    return current_user
 
 
 # ============================================================

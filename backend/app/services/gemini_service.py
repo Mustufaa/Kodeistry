@@ -228,7 +228,7 @@ async def review_with_openrouter(
             "http://localhost:8000"
         ),
         "X-Title": (
-            "Softistry Code Reviewer"
+            "Kodeistry Code Reviewer"
         ),
     }
 

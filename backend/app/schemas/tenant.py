@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel, EmailStr, Field
 
 
 class TenantCreate(BaseModel):
@@ -9,6 +11,29 @@ class TenantResponse(BaseModel):
     id: int
     name: str
     slug: str
+    workspace_type: Literal["PERSONAL", "ORGANIZATION"]
+
+    model_config = {
+        "from_attributes": True,
+    }
+
+
+class TenantMemberCreate(BaseModel):
+    email: EmailStr
+
+
+class TenantMemberResponse(BaseModel):
+    user_id: int
+    full_name: str
+    email: EmailStr
+    role: str
+
+
+class CurrentUserResponse(BaseModel):
+    id: int
+    full_name: str
+    email: EmailStr
+    is_verified: bool
 
     model_config = {
         "from_attributes": True,

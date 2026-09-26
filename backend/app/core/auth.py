@@ -8,16 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models.user import User
+from app.core.config import settings
 
 
-# ⚠️ Move this to environment variables later
-SECRET_KEY = "your-super-secret-key"
-
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def create_access_token(data: dict) -> str:
@@ -57,7 +56,7 @@ def decode_access_token(token: str):
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(
+    credentials: HTTPAuthorizationCredentials | None = Depends(
         bearer_scheme
     ),
     db: AsyncSession = Depends(get_db),
@@ -65,6 +64,12 @@ async def get_current_user(
     """
     Get the currently authenticated user from the JWT token.
     """
+
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authenticated",
+        )
 
     token = credentials.credentials
 

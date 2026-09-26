@@ -67,7 +67,7 @@ async def post_review_to_github(
     ]
 
     review_body = (
-        "🤖 **Softistry Code Reviewer**\n\n"
+        "🤖 **Reviewed by Kodeistry**\n\n"
         f"Found {len(comments)} issue(s) in this PR."
     )
 
