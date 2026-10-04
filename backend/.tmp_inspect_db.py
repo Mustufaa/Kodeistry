@@ -1,6 +1,6 @@
 import psycopg2
 
-url = 'postgresql://postgres:26042002@localhost:5432/codeflow'
+url = 'postgresql://postgres:26042002@localhost:5432/Kodeistry'
 with psycopg2.connect(url) as conn:
     with conn.cursor() as cur:
         cur.execute('SELECT current_database(), current_schema(), current_user')

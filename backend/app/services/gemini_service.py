@@ -68,6 +68,9 @@ For every finding:
 - Assign an appropriate severity.
 - Assign the correct category.
 - Give a concise explanation.
+- Explain the concrete consequence in `why_it_matters`.
+- Give implementation guidance in `recommended_approach`.
+- Give specific verification steps in `verification_steps`.
 - Provide a practical fix when possible.
 
 If there are no meaningful issues,
@@ -83,7 +86,10 @@ Return ONLY valid JSON matching this structure:
             "severity": "high",
             "category": "security",
             "message": "Explain the issue.",
-            "suggestion": "Explain the fix."
+            "why_it_matters": "Explain the concrete risk.",
+            "recommended_approach": "Explain the safest implementation approach.",
+            "suggestion": "Show the corrected code or exact change when possible.",
+            "verification_steps": "Describe relevant tests and checks."
         }}
     ],
     "files_reviewed": 1,

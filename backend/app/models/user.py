@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -26,9 +26,40 @@ class User(Base):
         nullable=False,
     )
 
-    hashed_password: Mapped[str] = mapped_column(
+    github_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        unique=True,
+        nullable=True,
+        index=True,
+    )
+
+    github_login: Mapped[str | None] = mapped_column(
         String(255),
+        nullable=True,
+    )
+
+    github_avatar_url: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    auth_provider: Mapped[str] = mapped_column(
+        String(30),
         nullable=False,
+        default='email',
+        server_default='email',
+    )
+
+    onboarding_tenant_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tenants.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+
+    hashed_password: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
     )
 
     # 👇 Add these new fields here

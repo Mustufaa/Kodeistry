@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
+from app.crud.tenant import create_personal_workspace
 from app.db.session import get_db
 from app.models.tenant import Tenant
 from app.models.tenant_member import TenantMember
@@ -36,6 +37,21 @@ def generate_slug(name: str) -> str:
 
     return slug
 
+
+
+@router.post(
+    "/personal",
+    response_model=TenantResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def ensure_personal_workspace(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    workspace = await create_personal_workspace(db, current_user)
+    await db.commit()
+    await db.refresh(workspace)
+    return workspace
 
 @router.post(
     "/",

@@ -27,7 +27,7 @@ async def send_verification_email(
 ) -> None:
 
     verification_link = (
-        f"http://localhost:3000/verify-email?token={token}"
+        f"{settings.FRONTEND_URL.rstrip('/')}/verify-email?token={token}"
     )
 
     html = f"""
@@ -65,7 +65,7 @@ async def send_password_reset_email(
 ) -> None:
 
     reset_link = (
-        f"http://localhost:3000/reset-password?token={token}"
+        f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
     )
 
     html = f"""

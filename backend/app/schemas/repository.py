@@ -1,9 +1,14 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RepositoryConnect(BaseModel):
     owner: str
     name: str
+
+
+class RepositorySelection(BaseModel):
+    repository_ids: list[int] = Field(default_factory=list)
+    select_all: bool = False
 
 
 class RepositoryResponse(BaseModel):
@@ -18,3 +23,7 @@ class RepositoryResponse(BaseModel):
     full_name: str
     private: bool
     default_branch: str
+    html_url: str | None = None
+    description: str | None = None
+    language: str | None = None
+    is_active: bool

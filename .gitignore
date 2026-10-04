@@ -76,6 +76,14 @@ pnpm-debug.log*
 *.dll
 *.so
 *.dylib
-test_diff.py
-test_gemini.py
-test_review.py
+# Test files
+test_*.py
+*_test.py
+*.test.js
+*.test.jsx
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.jsx
+*.spec.ts
+*.spec.tsx

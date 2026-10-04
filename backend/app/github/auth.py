@@ -6,174 +6,77 @@ import jwt
 
 from app.core.config import settings
 
-
 GITHUB_API_URL = "https://api.github.com"
 
 
 def create_github_app_jwt() -> str:
-    """
-    Create a JWT used to authenticate as the GitHub App.
-    """
-
     if not settings.GITHUB_APP_ID:
-        raise ValueError(
-            "GITHUB_APP_ID is not configured."
-        )
-
-    if not settings.GITHUB_PRIVATE_KEY_PATH:
-        raise ValueError(
-            "GITHUB_PRIVATE_KEY_PATH is not configured."
-        )
-
-    # Resolve private key path relative to the backend directory
-    private_key_path = Path(
-        settings.GITHUB_PRIVATE_KEY_PATH
-    )
-
-    if not private_key_path.is_absolute():
-        private_key_path = (
-            Path(__file__).resolve().parents[2]
-            / private_key_path
-        )
-
-    if not private_key_path.exists():
-        raise FileNotFoundError(
-            f"GitHub private key file not found: "
-            f"{private_key_path}"
-        )
-
-    # Read GitHub App private key
-    private_key = private_key_path.read_text(
-        encoding="utf-8"
-    )
-
+        raise ValueError("GITHUB_APP_ID is not configured.")
+    private_key = settings.GITHUB_APP_PRIVATE_KEY.replace("\\\\n", "\\n").strip()
+    if not private_key:
+        if not settings.GITHUB_PRIVATE_KEY_PATH:
+            raise ValueError(
+                "GITHUB_APP_PRIVATE_KEY or GITHUB_PRIVATE_KEY_PATH is not configured."
+            )
+        key_path = Path(settings.GITHUB_PRIVATE_KEY_PATH)
+        if not key_path.is_absolute():
+            key_path = Path(__file__).resolve().parents[2] / key_path
+        if not key_path.exists():
+            raise FileNotFoundError(f"GitHub private key file not found: {key_path}")
+        private_key = key_path.read_text(encoding="utf-8")
     now = int(time.time())
+    return jwt.encode({"iat": now - 60, "exp": now + 600, "iss": settings.GITHUB_APP_ID}, private_key, algorithm="RS256")
 
-    payload = {
-        "iat": now - 60,
-        "exp": now + (10 * 60),
-        "iss": settings.GITHUB_APP_ID,
-    }
 
-    token = jwt.encode(
-        payload,
-        private_key,
-        algorithm="RS256",
-    )
-
-    return token
+def _app_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {create_github_app_jwt()}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
 
 
 async def get_github_app() -> dict:
-    """
-    Get GitHub App information using the App JWT.
-    Used to verify that GitHub App authentication works.
-    """
-
-    app_jwt = create_github_app_jwt()
-
-    url = f"{GITHUB_API_URL}/app"
-
-    headers = {
-        "Authorization": f"Bearer {app_jwt}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            url,
-            headers=headers,
-        )
-
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.get(f"{GITHUB_API_URL}/app", headers=_app_headers())
     if response.status_code != 200:
-        raise RuntimeError(
-            "Failed to authenticate GitHub App: "
-            f"{response.status_code} {response.text}"
-        )
-
+        raise RuntimeError(f"GitHub App authentication failed: {response.status_code}")
     return response.json()
+
 
 async def get_github_app_installations() -> list:
-    """
-    Get all installations of the GitHub App.
-    """
-
-    app_jwt = create_github_app_jwt()
-
-    url = f"{GITHUB_API_URL}/app/installations"
-
-    headers = {
-        "Authorization": f"Bearer {app_jwt}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            url,
-            headers=headers,
-        )
-
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.get(f"{GITHUB_API_URL}/app/installations", headers=_app_headers())
     if response.status_code != 200:
-        raise RuntimeError(
-            "Failed to fetch GitHub App installations: "
-            f"{response.status_code} {response.text}"
-        )
-
+        raise RuntimeError(f"GitHub App installation lookup failed: {response.status_code}")
     return response.json()
 
-async def get_installation_access_token(
-    installation_id: int,
-) -> str:
-    """
-    Generate an installation access token
-    for a GitHub App installation.
-    """
 
-    app_jwt = create_github_app_jwt()
+async def get_github_app_installation(installation_id: int) -> dict:
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.get(f"{GITHUB_API_URL}/app/installations/{installation_id}", headers=_app_headers())
+    if response.status_code != 200:
+        raise RuntimeError(f"GitHub App installation verification failed: {response.status_code}")
+    return response.json()
 
-    url = (
-        f"{GITHUB_API_URL}/app/installations/"
-        f"{installation_id}/access_tokens"
-    )
 
-    headers = {
-        "Authorization": f"Bearer {app_jwt}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            url,
-            headers=headers,
-        )
-
+async def get_installation_access_token(installation_id: int) -> str:
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.post(f"{GITHUB_API_URL}/app/installations/{installation_id}/access_tokens", headers=_app_headers())
     if response.status_code != 201:
-        raise RuntimeError(
-            "Failed to create GitHub installation "
-            "access token: "
-            f"{response.status_code} {response.text}"
-        )
+        raise RuntimeError(f"GitHub installation token request failed: {response.status_code}")
+    token = response.json().get("token")
+    if not token:
+        raise RuntimeError("GitHub did not return an installation token.")
+    return token
 
-    data = response.json()
 
-    return data["token"]
-
-async def get_repository_installation_id(
-    owner: str,
-    repo: str,
-) -> int:
-    installations = await get_github_app_installations()
-
-    for installation in installations:
-        account = installation.get("account")
-        account_login = account.get("login") if account else None
-
-        if account_login == owner:
+async def get_repository_installation_id(owner: str, repo: str) -> int:
+    for installation in await get_github_app_installations():
+        account = installation.get("account") or {}
+        if account.get("login") == owner:
             return installation["id"]
+    raise RuntimeError(f"GitHub App installation not found for owner: {owner}")
 
-    raise RuntimeError(
-        f"GitHub App installation not found for owner: {owner}"
-    )
+
+async def delete_github_app_installation(installation_id: int) -> None:
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.delete(f"{GITHUB_API_URL}/app/installations/{installation_id}", headers=_app_headers())
+    if response.status_code not in {204, 404}:
+        raise RuntimeError(f"GitHub App uninstall failed: {response.status_code}")

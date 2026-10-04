@@ -1,7 +1,7 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-conn = psycopg2.connect('postgresql://postgres:26042002@localhost:5432/codeflow')
+conn = psycopg2.connect('postgresql://postgres:26042002@localhost:5432/Kodeistry')
 cur = conn.cursor(cursor_factory=RealDictCursor)
 cur.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public' ORDER BY tablename")
 print('tables=', [r['tablename'] for r in cur.fetchall()])

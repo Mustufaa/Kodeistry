@@ -9,7 +9,11 @@ from app.models.tenant import Tenant
 from app.models.tenant_member import TenantMember
 from app.models.github_installation import GitHubInstallation
 from app.models.repository import Repository
-from app.schemas.repository import RepositoryConnect, RepositoryResponse
+from app.schemas.repository import (
+    RepositoryConnect,
+    RepositoryResponse,
+    RepositorySelection,
+)
 from app.github.client import GitHubClient
 from app.models.review_run import ReviewRun
 from app.schemas.review import ReviewRunResponse
@@ -18,13 +22,107 @@ from app.models.review_finding import ReviewFinding
 
 from app.schemas.review import (
     ReviewRunDetailResponse,
-    ReviewFinding as ReviewFindingSchema,
+    PersistedReviewFinding as ReviewFindingSchema,
 )
 
 router = APIRouter(
     prefix="/api/tenants/{tenant_id}/repositories",
     tags=["Repositories"],
 )
+
+
+async def get_tenant_installation(
+    tenant_id: int,
+    current_user: User,
+    db: AsyncSession,
+) -> GitHubInstallation:
+    member = await db.scalar(
+        select(TenantMember).where(
+            TenantMember.tenant_id == tenant_id,
+            TenantMember.user_id == current_user.id,
+        )
+    )
+    if member is None:
+        raise HTTPException(status_code=403, detail="You are not a member of this tenant")
+
+    installation = await db.scalar(
+        select(GitHubInstallation).where(
+            GitHubInstallation.tenant_id == tenant_id
+        )
+    )
+    if installation is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No GitHub installation connected to this tenant",
+        )
+    return installation
+
+
+@router.get("/available")
+async def list_available_repositories(
+    tenant_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    installation = await get_tenant_installation(tenant_id, current_user, db)
+    try:
+        return await GitHubClient().list_installation_repositories(
+            installation.installation_id
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.put("/selection", response_model=list[RepositoryResponse])
+async def save_repository_selection(
+    tenant_id: int,
+    data: RepositorySelection,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    installation = await get_tenant_installation(tenant_id, current_user, db)
+    try:
+        available = await GitHubClient().list_installation_repositories(
+            installation.installation_id
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    available_ids = {repository.get("id") for repository in available}
+    if not data.select_all and not set(data.repository_ids).issubset(available_ids):
+        raise HTTPException(
+            status_code=400,
+            detail="One or more selected repositories are not available to this installation.",
+        )
+    selected = available if data.select_all else [
+        repository for repository in available
+        if repository.get("id") in data.repository_ids
+    ]
+
+    existing = await db.scalars(
+        select(Repository).where(Repository.tenant_id == tenant_id)
+    )
+    for repository in existing.all():
+        await db.delete(repository)
+
+    saved = [
+        Repository(
+            tenant_id=tenant_id,
+            github_installation_id=installation.id,
+            github_repository_id=github_repo["id"],
+            owner=github_repo["owner"]["login"],
+            name=github_repo["name"],
+            full_name=github_repo["full_name"],
+            private=github_repo["private"],
+            default_branch=github_repo.get("default_branch") or "main",
+        )
+        for github_repo in selected
+    ]
+    db.add_all(saved)
+    await db.commit()
+    for repository in saved:
+        await db.refresh(repository)
+    return saved
 
 
 @router.post(
@@ -190,7 +288,10 @@ async def list_repositories(
     # --------------------------------------------------
     repositories_result = await db.execute(
         select(Repository)
-        .where(Repository.tenant_id == tenant_id)
+        .where(
+            Repository.tenant_id == tenant_id,
+            Repository.is_active.is_(True),
+        )
         .order_by(Repository.id.desc())
     )
 
@@ -389,12 +490,25 @@ async def get_repository_review_detail(
         completed_at=review_run.completed_at,
         findings=[
             ReviewFindingSchema(
+                id=finding.id,
+                review_id=review_run.id,
+                repository_id=review_run.repository_id,
+                repository_name=repository.full_name,
+                pull_request_number=review_run.pull_request_number,
+                commit_sha=review_run.commit_sha,
                 filename=finding.filename,
                 line=finding.line,
                 severity=finding.severity,
                 category=finding.category,
                 message=finding.message,
                 suggestion=finding.suggestion,
+                why_it_matters=finding.why_it_matters,
+                recommended_approach=finding.recommended_approach,
+                verification_steps=finding.verification_steps,
+                status=finding.status,
+                created_at=finding.created_at,
+                resolved_at=finding.resolved_at,
+                github_url=(f"{repository.html_url}/pull/{review_run.pull_request_number}" if repository.html_url else None),
             )
             for finding in findings
         ],

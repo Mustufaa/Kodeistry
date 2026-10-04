@@ -1,9 +1,11 @@
-import hashlib
+﻿import hashlib
+import logging
 import hmac
 from datetime import datetime, timezone
 from json import JSONDecodeError
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -21,6 +23,8 @@ from app.services.github_review_service import (
 )
 
 from app.db.session import get_db
+from app.models.repository import Repository
+from app.models.github_installation import GitHubInstallation
 
 from app.models.review_run import (
     ReviewRun,
@@ -32,12 +36,18 @@ from app.models.review_finding import ReviewFinding
 from app.services.repository_service import (
     get_repository_for_installation,
 )
+from app.api.github_installation import (
+    apply_installation_account,
+    get_verified_installation,
+    synchronize_installation,
+)
 
 
 router = APIRouter(
     prefix="/api/github",
     tags=["GitHub"],
 )
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -131,6 +141,60 @@ async def github_webhook(
 
     action = data.get("action")
 
+    if event in {"installation", "installation_repositories"}:
+        installation_id = (data.get("installation") or {}).get("id")
+        logger.info("GitHub %s webhook received for installation %s action=%s", event, installation_id, action)
+        if not installation_id:
+            raise HTTPException(status_code=400, detail="GitHub installation ID missing from webhook payload.")
+
+        installation = await db.scalar(
+            select(GitHubInstallation).where(GitHubInstallation.installation_id == installation_id)
+        )
+        if event == "installation" and action == "deleted":
+            if installation is not None:
+                installation.is_active = False
+                installation.disconnected_at = datetime.now(timezone.utc)
+                repositories = await db.scalars(
+                    select(Repository).where(
+                        Repository.github_installation_id == installation.id
+                    )
+                )
+                for repository in repositories.all():
+                    repository.is_active = False
+                await db.commit()
+            return {
+                "message": "GitHub installation disconnected.",
+                "event": event,
+                "action": action,
+                "installation_id": installation_id,
+            }
+        if installation is None:
+            logger.info("GitHub installation %s webhook received before tenant association; waiting for setup callback.", installation_id)
+            return {
+                "message": "Installation webhook received before tenant association.",
+                "event": event,
+                "action": action,
+                "installation_id": installation_id,
+            }
+
+        github_installation = await get_verified_installation(installation_id)
+        apply_installation_account(installation, github_installation)
+        sync_summary = await synchronize_installation(db, installation)
+        await db.commit()
+        logger.info("GitHub installation %s synchronized from %s webhook: %s repositories", installation_id, event, sync_summary.total)
+        return {
+            "message": "GitHub installation synchronized.",
+            "event": event,
+            "action": action,
+            "installation_id": installation_id,
+            "repositories_synced": sync_summary.total,
+            "sync_summary": {
+                "total": sync_summary.total,
+                "created": sync_summary.created,
+                "updated": sync_summary.updated,
+                "removed": sync_summary.removed,
+            },
+        }
     # --------------------------------------------------------
     # 2. Only process relevant Pull Request events
     # --------------------------------------------------------
@@ -300,6 +364,9 @@ async def github_webhook(
                     category=finding.category.value,
                     message=finding.message,
                     suggestion=finding.suggestion,
+                    why_it_matters=finding.why_it_matters,
+                    recommended_approach=finding.recommended_approach,
+                    verification_steps=finding.verification_steps,
                 )
             )
 
@@ -360,4 +427,4 @@ async def github_webhook(
         "findings_count": review_run.findings_count,
         "review": review_result.model_dump(),
         "github_review": github_review,
-    } 
+    }

@@ -56,6 +56,25 @@ class ReviewFinding(Base):
         nullable=True,
     )
 
+    why_it_matters: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    recommended_approach: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    verification_steps: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="open",
+        server_default="open",
+        index=True,
+    )
+
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

@@ -11,11 +11,12 @@ from app.models.tenant_member import TenantMember
 from app.models.review_run import ReviewRun
 
 from app.models.review_finding import ReviewFinding
+from app.models.repository import Repository
 
 from app.schemas.review import (
     ReviewRunResponse,
     ReviewRunDetailResponse,
-    ReviewFinding as ReviewFindingSchema,
+    PersistedReviewFinding as ReviewFindingSchema,
 )
 
 
@@ -170,6 +171,7 @@ async def get_review_history_detail(
     )
 
     findings = findings_result.scalars().all()
+    repository = await db.scalar(select(Repository).where(Repository.id == review_run.repository_id))
 
     # --------------------------------------------------
     # 5. Build response
@@ -186,12 +188,25 @@ async def get_review_history_detail(
         completed_at=review_run.completed_at,
         findings=[
             ReviewFindingSchema(
+                id=finding.id,
+                review_id=review_run.id,
+                repository_id=review_run.repository_id,
+                repository_name=repository.full_name if repository else f"Repository {review_run.repository_id}",
+                pull_request_number=review_run.pull_request_number,
+                commit_sha=review_run.commit_sha,
                 filename=finding.filename,
                 line=finding.line,
                 severity=finding.severity,
                 category=finding.category,
                 message=finding.message,
                 suggestion=finding.suggestion,
+                why_it_matters=finding.why_it_matters,
+                recommended_approach=finding.recommended_approach,
+                verification_steps=finding.verification_steps,
+                status=finding.status,
+                created_at=finding.created_at,
+                resolved_at=finding.resolved_at,
+                github_url=(f"{repository.html_url}/pull/{review_run.pull_request_number}" if repository and repository.html_url else None),
             )
             for finding in findings
         ],

@@ -74,7 +74,7 @@ class Settings:
     CORS_ALLOWED_ORIGINS: list[str] = _parse_cors_allowed_origins(
         config(
             "CORS_ALLOWED_ORIGINS",
-            default="http://localhost:3000",
+            default="http://localhost:3000,http://127.0.0.1:3000",
         )
     )
 
@@ -83,7 +83,9 @@ class Settings:
     # JWT
     # ============================================================
 
-    SECRET_KEY: str = _validate_secret_key(config("SECRET_KEY"))
+    SECRET_KEY: str = _validate_secret_key(
+        config("JWT_SECRET_KEY", default=config("SECRET_KEY", default=""))
+    )
 
     ALGORITHM: str = config(
         "ALGORITHM",
@@ -94,6 +96,37 @@ class Settings:
         "ACCESS_TOKEN_EXPIRE_MINUTES",
         cast=int,
         default=30,
+    )
+
+    AUTH_COOKIE_NAME: str = config(
+        "AUTH_COOKIE_NAME",
+        default="kodeistry_session",
+    )
+
+    CSRF_COOKIE_NAME: str = config(
+        "CSRF_COOKIE_NAME",
+        default="kodeistry_csrf",
+    )
+
+    AUTH_COOKIE_SECURE: bool = config(
+        "AUTH_COOKIE_SECURE",
+        cast=bool,
+        default=False,
+    )
+
+    AUTH_COOKIE_SAMESITE: str = config(
+        "AUTH_COOKIE_SAMESITE",
+        default="lax",
+    ).lower()
+
+    OAUTH_STATE_COOKIE_NAME: str = config(
+        "OAUTH_STATE_COOKIE_NAME",
+        default="kodeistry_oauth_state",
+    )
+
+    GITHUB_SETUP_STATE_COOKIE_NAME: str = config(
+        "GITHUB_SETUP_STATE_COOKIE_NAME",
+        default="kodeistry_github_setup_state",
     )
 
 
@@ -151,13 +184,38 @@ class Settings:
         default="",
     )
 
+    GITHUB_APP_SLUG: str = config(
+        "GITHUB_APP_SLUG",
+        default="kodeistry",
+    )
+
     GITHUB_CLIENT_SECRET: str = config(
         "GITHUB_CLIENT_SECRET",
         default="",
     )
 
+    BACKEND_URL: str = config(
+        "BACKEND_URL",
+        default="http://localhost:8000",
+    ).rstrip("/")
+
+    GITHUB_REDIRECT_URI: str = config(
+        "GITHUB_REDIRECT_URI",
+        default=f"{BACKEND_URL}/api/auth/github/callback",
+    )
+
+    FRONTEND_URL: str = config(
+        "FRONTEND_URL",
+        default="http://localhost:3000",
+    )
+
     GITHUB_PRIVATE_KEY_PATH: str = config(
         "GITHUB_PRIVATE_KEY_PATH",
+        default="",
+    )
+
+    GITHUB_APP_PRIVATE_KEY: str = config(
+        "GITHUB_APP_PRIVATE_KEY",
         default="",
     )
 

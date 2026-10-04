@@ -15,6 +15,6 @@ output.txt
 dist/
 build/
 *.egg-info/
-test_diff.py
-test_gemini.py
-test_review.py
+# Test files
+test_*.py
+*_test.py

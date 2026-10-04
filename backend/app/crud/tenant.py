@@ -10,6 +10,30 @@ async def create_personal_workspace(
     db: AsyncSession,
     user: User,
 ) -> Tenant:
+    existing = await db.scalar(
+        select(Tenant).where(
+            Tenant.workspace_type == "PERSONAL",
+            Tenant.personal_owner_user_id == user.id,
+        )
+    )
+    if existing is not None:
+        membership = await db.scalar(
+            select(TenantMember).where(
+                TenantMember.tenant_id == existing.id,
+                TenantMember.user_id == user.id,
+            )
+        )
+        if membership is None:
+            db.add(
+                TenantMember(
+                    tenant_id=existing.id,
+                    user_id=user.id,
+                    role="OWNER",
+                )
+            )
+            await db.flush()
+        return existing
+
     base_slug = f"personal-{user.id}"
     slug = base_slug
     suffix = 1

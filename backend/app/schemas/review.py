@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Severity(str, Enum):
@@ -26,6 +26,7 @@ class ReviewCategory(str, Enum):
     PERFORMANCE = "performance"
     QUALITY = "quality"
     STYLE = "style"
+    TESTING = "testing"
 
 
 class ReviewFinding(BaseModel):
@@ -49,13 +50,32 @@ class ReviewFinding(BaseModel):
 
     suggestion: str | None = None
 
+    why_it_matters: str | None = None
+
+    recommended_approach: str | None = None
+
+    verification_steps: str | None = None
+
+
+class PersistedReviewFinding(ReviewFinding):
+    id: int
+    review_id: int
+    repository_id: int
+    repository_name: str
+    pull_request_number: int
+    commit_sha: str
+    status: str
+    created_at: datetime
+    resolved_at: datetime | None = None
+    github_url: str | None = None
+
 
 class ReviewResult(BaseModel):
     """
     Complete result of reviewing a Pull Request.
     """
 
-    findings: list[ReviewFinding] = Field(
+    findings: list[PersistedReviewFinding] = Field(
         default_factory=list,
     )
 
@@ -88,6 +108,8 @@ class ReviewRunResponse(BaseModel):
     created_at: datetime
 
     completed_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ReviewRunDetailResponse(ReviewRunResponse):

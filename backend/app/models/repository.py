@@ -77,6 +77,28 @@ class Repository(Base):
         nullable=False,
     )
 
+    html_url: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    description: Mapped[str | None] = mapped_column(
+        String(1000),
+        nullable=True,
+    )
+
+    language: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default="true",
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

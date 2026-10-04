@@ -21,10 +21,36 @@ class GitHubClient:
         """
 
         return {
-            "Authorization": f"Bearer {access_token}",
+            "Authorization": ("Bearer " + access_token),
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
         }
+
+    async def list_installation_repositories(
+        self,
+        installation_id: int,
+    ) -> list[dict]:
+        access_token = await get_installation_access_token(installation_id)
+        repositories: list[dict] = []
+        page = 1
+
+        async with httpx.AsyncClient() as client:
+            while True:
+                response = await client.get(
+                    f"{GITHUB_API_URL}/installation/repositories",
+                    headers=self._headers(access_token),
+                    params={"per_page": 100, "page": page},
+                )
+                if response.status_code != 200:
+                    raise RuntimeError(
+                        "Failed to fetch GitHub installation repositories: "
+                        f"{response.status_code} {response.text}"
+                    )
+                batch = response.json().get("repositories", [])
+                repositories.extend(batch)
+                if len(batch) < 100:
+                    return repositories
+                page += 1
 
     # ========================================================
     # REPOSITORY
