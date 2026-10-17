@@ -2,10 +2,12 @@ import { apiRequest, clearAuth } from "./client";
 import type { AuthToken, CurrentUser, LoginInput, RegisterInput } from "@/types/auth";
 
 export async function login(payload: LoginInput) {
-  return apiRequest<AuthToken>("/auth/login", {
+  const session = await apiRequest<AuthToken>("/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  clearAuth();
+  return session;
 }
 
 export async function register(payload: RegisterInput) {

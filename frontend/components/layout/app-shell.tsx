@@ -15,6 +15,7 @@ import {
   Menu,
   Settings,
   ShieldCheck,
+  ScanSearch,
   Sparkles,
   X,
 } from "lucide-react";
@@ -31,6 +32,7 @@ const navItems = [
   { href: "/repositories", label: "Repositories", icon: FolderGit2 },
   { href: "/reviews", label: "Reviews", icon: ShieldCheck },
   { href: "/findings", label: "Findings", icon: Bug },
+  { href: "/secret-scanner", label: "Secret Scanner", icon: ScanSearch },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/settings/integrations/github", label: "GitHub", icon: GitBranch },
 ] as const;
@@ -96,7 +98,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={href}
               href={href}
-              title={collapsed && !mobile ? label : undefined}
+              title={collapsed && !mobile ? (href === "/secret-scanner" ? "Secret Scanner — Coming Soon" : label) : undefined}
+              aria-label={collapsed && !mobile ? (href === "/secret-scanner" ? "Secret Scanner — Coming Soon" : label) : undefined}
               aria-current={active ? "page" : undefined}
               onClick={() => mobile && setMobileOpen(false)}
               className={cn(
@@ -107,7 +110,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               {active ? <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-violet-400" /> : null}
               <Icon className={cn("size-[17px] shrink-0", active && "text-violet-600 dark:text-violet-400")} />
-              {!collapsed || mobile ? label : null}
+              {!collapsed || mobile ? (
+                <>
+                  <span className="min-w-0 flex-1 truncate">{label}</span>
+                  {href === "/secret-scanner" ? (
+                    <span className="shrink-0 rounded-full border border-violet-500/20 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-violet-700 dark:text-violet-300">
+                      Coming Soon
+                    </span>
+                  ) : null}
+                </>
+              ) : null}
             </Link>
           );
         })}

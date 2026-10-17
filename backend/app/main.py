@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api import auth
+from app.api.secret_scans import router as secret_scan_router, finding_router as secret_finding_router
 from app.api.github import router as github_router
 from app.api.tenant import router as tenant_router
 from app.api.github_installation import router as github_installation_router
@@ -27,6 +28,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(secret_scan_router)
+app.include_router(secret_finding_router)
 
 app.include_router(github_router)
 app.include_router(github_setup_router)

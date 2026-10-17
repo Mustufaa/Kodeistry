@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 
 import { BrandMark } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,9 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-xl border bg-card p-8 shadow-sm">
+        <Button asChild variant="outline" size="icon" className="mb-6">
+          <Link href="/" aria-label="Back to landing"><ArrowLeft className="h-4 w-4" /></Link>
+        </Button>
         <div className="mb-8 text-center">
           <BrandMark className="mx-auto mb-4 size-12" />
           <h1 className="text-2xl font-semibold">Create account</h1>

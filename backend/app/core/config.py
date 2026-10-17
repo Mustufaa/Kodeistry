@@ -226,6 +226,15 @@ class Settings:
 
 
     # ============================================================
+    # Manual Secret Scanner worker
+    SECRET_SCANNER_HMAC_KEY: str = config("SECRET_SCANNER_HMAC_KEY", default="")
+    GITLEAKS_PATH: str = config("GITLEAKS_PATH", default="gitleaks")
+    SECRET_SCAN_MAX_SECONDS: int = config("SECRET_SCAN_MAX_SECONDS", cast=int, default=900)
+    SECRET_SCAN_MAX_DISK_MB: int = config("SECRET_SCAN_MAX_DISK_MB", cast=int, default=1024)
+    SECRET_SCAN_MAX_FILE_MB: int = config("SECRET_SCAN_MAX_FILE_MB", cast=int, default=10)
+    SECRET_SCAN_MAX_CONCURRENT: int = config("SECRET_SCAN_MAX_CONCURRENT", cast=int, default=2)
+    SECRET_SCAN_MAX_QUEUED_PER_USER: int = config("SECRET_SCAN_MAX_QUEUED_PER_USER", cast=int, default=3)
+
     # Gemini
     # ============================================================
 

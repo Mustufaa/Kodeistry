@@ -19,9 +19,9 @@ export const metadata: Metadata = {
   description:
     "AI-powered code reviews for GitHub pull requests, security findings, and code-quality insights.",
   icons: {
-    icon: "/kodeistry-logo.png",
-    shortcut: "/kodeistry-logo.png",
-    apple: "/kodeistry-logo.png",
+    icon: "/kodeistry-icon.png",
+    shortcut: "/kodeistry-icon.png",
+    apple: "/kodeistry-icon.png",
   },
 };
 

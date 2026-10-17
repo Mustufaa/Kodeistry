@@ -1,0 +1,13 @@
+title = "Kodeistry secret scanner"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "kodeistry-credentialed-database-url"
+description = "Database URL with embedded credentials"
+regex = '''(?i)\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis)://[a-z0-9._%-]+:[^\s@/]{8,}@[a-z0-9._:-]+'''
+secretGroup = 0
+
+[[rules.allowlists]]
+regexes = ['''(?i)^(?:example|sample|dummy|test|changeme|your-token)$''']

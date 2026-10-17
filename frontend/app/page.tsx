@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { Pixelify_Sans } from "next/font/google";
 import { ArrowRight, ArrowUpRight, CheckCircle2, GitBranch, Lock, ShieldCheck, Sparkles, Zap } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand-logo";
-import { Button } from "@/components/ui/button";
+import { CodeReviewAnimation } from "@/components/landing/code-review-animation";
+import { CrawlingBug } from "@/components/landing/crawling-bug";
+import styles from "./landing-page.module.css";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+
+const pixelify = Pixelify_Sans({ variable: "--font-voxel", subsets: ["latin"], display: "swap", fallback: ["ui-monospace", "monospace"] });
 
 const features = [
   { title: "Automated PR analysis", description: "Detect bugs, security issues, and quality flaws before merge.", icon: Sparkles },
@@ -22,12 +27,12 @@ const steps = [
 
 export default function Page() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-sm">
+    <div className={pixelify.variable + " " + styles.landing}>
+      <header className={styles.siteHeader}>
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <BrandLogo href="/" ariaLabel="Kodeistry home" />
 
-          <div className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
+          <div className={"hidden items-center gap-8 text-sm text-muted-foreground md:flex " + styles.navLinks}>
             <a href="#product" className="hover:text-foreground">Product</a>
             <a href="#features" className="hover:text-foreground">Features</a>
             <a href="#security" className="hover:text-foreground">Security</a>
@@ -37,75 +42,40 @@ export default function Page() {
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <Link href="/login" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground md:inline-flex">Login</Link>
-            <Link href="/register" className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background">Get Started</Link>
+            <Link href="/register" className={styles.headerCta}>Get Started</Link>
           </div>
         </nav>
       </header>
 
       <main>
-        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="grid items-center gap-10 lg:grid-cols-2">
-            <div>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
+        <section className={"mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 " + styles.hero}>
+          <div className={"grid items-center gap-10 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] " + styles.heroGrid}>
+            <div className={styles.heroCopy}>
+              <div className={styles.heroBadge}>
                 <Sparkles className="h-3.5 w-3.5" /> AI PR Review Platform
               </div>
-              <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-                AI-Powered Code Reviews for GitHub
+              <h1 className={styles.heroTitle}>
+                <span className={styles.heroTitleAccent}>AI-Powered</span> Code Reviews for GitHub
               </h1>
-              <p className="mt-6 max-w-xl text-lg text-muted-foreground">
+              <p className={styles.heroDescription}>
                 Kodeistry automatically analyzes your pull requests, identifies security vulnerabilities, bugs, and code-quality issues, and delivers actionable feedback.
               </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link href="/register">
-                  <Button size="lg" className="w-full sm:w-auto">Get Started <ArrowRight className="ml-2 h-4 w-4" /></Button>
-                </Link>
-                <Link href="/dashboard">
-                  <Button variant="outline" size="lg" className="w-full sm:w-auto">View Dashboard</Button>
-                </Link>
+              <div className={styles.heroActions}>
+                <Link href="/register" className={styles.primaryCta}>Get Started <ArrowRight className="h-4 w-4" /></Link>
+                <Link href="/dashboard" className={styles.secondaryCta}>View Dashboard</Link>
               </div>
             </div>
 
-            <div className="rounded-2xl border bg-card p-4 shadow-sm">
-              <div className="rounded-xl border bg-secondary p-4">
-                <div className="mb-4 flex items-center justify-between text-sm text-muted-foreground">
-                  <span>PR Review: #243</span>
-                  <span className="rounded-full bg-red-500/10 px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400">CRITICAL</span>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Repository</div>
-                    <div className="mt-1 font-medium">acme/platform-api</div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-md border bg-background p-3">
-                      <div className="text-xs text-muted-foreground">Findings</div>
-                      <div className="mt-2 text-2xl font-semibold">18</div>
-                    </div>
-                    <div className="rounded-md border bg-background p-3">
-                      <div className="text-xs text-muted-foreground">Security</div>
-                      <div className="mt-2 text-2xl font-semibold">4</div>
-                    </div>
-                    <div className="rounded-md border bg-background p-3">
-                      <div className="text-xs text-muted-foreground">Quality</div>
-                      <div className="mt-2 text-2xl font-semibold">12</div>
-                    </div>
-                  </div>
-                  <div className="rounded-md border bg-background p-3">
-                    <div className="mb-2 text-sm font-medium">High priority finding</div>
-                    <p className="text-sm text-muted-foreground">Unvalidated user input is passed into the token verification flow and may lead to denial-of-service behavior.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <CodeReviewAnimation />
           </div>
         </section>
 
-        <section id="product" className="border-y bg-card/30">
+        <section id="product" className={styles.sectionBand}>
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
             <div className="mb-8 max-w-2xl">
-              <div className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Product</div>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight">The AI review layer your team actually trusts</h2>
+              <div className={styles.sectionEyebrow}>Product</div>
+              <h2 className={styles.sectionHeading}>The AI review layer your team actually trusts</h2>
             </div>
             <div className="grid gap-6 md:grid-cols-3">
               {[
@@ -113,10 +83,10 @@ export default function Page() {
                 ["Security detection", "Prioritize auth, injection, and unsafe data flow regressions."],
                 ["Team visibility", "Keep repos, PRs, and findings in one high-signal review workspace."],
               ].map(([title, description]) => (
-                <div key={title} className="rounded-xl border bg-background p-6">
-                  <div className="mb-4 h-10 w-10 rounded-md bg-secondary flex items-center justify-center text-sm font-semibold">✓</div>
-                  <h3 className="text-lg font-semibold">{title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+                <div key={title} data-bug-card className={styles.voxelCard}>
+                  <div className={styles.tileIcon}>✓</div>
+                  <h3 className={styles.cardTitle}>{title}</h3>
+                  <p className={styles.cardBody}>{description}</p>
                 </div>
               ))}
             </div>
@@ -125,40 +95,40 @@ export default function Page() {
 
         <section id="features" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="mb-10 max-w-2xl">
-            <div className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Features</div>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">Built for engineering teams</h2>
+            <div className={styles.sectionEyebrow}>Features</div>
+            <h2 className={styles.sectionHeading}>Built for engineering teams</h2>
           </div>
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {features.map(({ title, description, icon: Icon }) => (
-              <div key={title} className="rounded-xl border bg-card p-6">
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-md bg-secondary">
+              <div key={title} data-bug-card className={styles.voxelCard}>
+                <div className={styles.tileIcon}>
                   <Icon className="h-4 w-4" />
                 </div>
-                <h3 className="text-lg font-semibold">{title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+                <h3 className={styles.cardTitle}>{title}</h3>
+                <p className={styles.cardBody}>{description}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section id="github" className="border-y bg-card/30">
+        <section id="github" className={styles.sectionBand}>
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
             <div className="grid gap-10 lg:grid-cols-2">
               <div>
-                <div className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">GitHub integration</div>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight">Connected to the review flow your developers already use</h2>
+                <div className={styles.sectionEyebrow}>GitHub integration</div>
+                <h2 className={styles.sectionHeading}>Connected to the review flow your developers already use</h2>
                 <p className="mt-4 text-muted-foreground">Kodeistry plugs into GitHub App installation patterns and uses repository context, PR metadata, and review history to prioritize issues based on real code changes.</p>
               </div>
-              <div className="flex items-center justify-center rounded-2xl border bg-background p-8">
+              <div data-bug-card className={styles.integrationPanel}>
                 <div className="w-full space-y-4">
                   {[
                     ["GitHub App installation", "Connected"],
                     ["Repositories tracked", "12"],
                     ["Review runs", "84"],
                   ].map(([label, value]) => (
-                    <div key={label} className="flex items-center justify-between rounded-lg border bg-card px-4 py-3">
+                    <div key={label} className={styles.integrationRow}>
                       <span className="text-sm text-muted-foreground">{label}</span>
-                      <span className="font-medium">{value}</span>
+                      <span className={styles.integrationValue}>{value}</span>
                     </div>
                   ))}
                 </div>
@@ -169,8 +139,8 @@ export default function Page() {
 
         <section id="security" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="mb-10 max-w-2xl">
-            <div className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Security & quality</div>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">Prioritize risk and reduce review debt</h2>
+            <div className={styles.sectionEyebrow}>Security & quality</div>
+            <h2 className={styles.sectionHeading}>Prioritize risk and reduce review debt</h2>
           </div>
           <div className="grid gap-6 lg:grid-cols-3">
             {[
@@ -178,9 +148,9 @@ export default function Page() {
               ["Code quality", "Highlight maintainability and logic problems with clear suggestions."],
               ["Review history", "Track how findings evolve across PRs and repositories over time."],
             ].map(([title, description]) => (
-              <div key={title} className="rounded-xl border bg-card p-6">
-                <h3 className="text-lg font-semibold">{title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+              <div key={title} data-bug-card className={styles.voxelCard}>
+                <h3 className={styles.cardTitle}>{title}</h3>
+                <p className={styles.cardBody}>{description}</p>
               </div>
             ))}
           </div>
@@ -188,42 +158,53 @@ export default function Page() {
 
         <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
           <div className="mb-8 max-w-2xl">
-            <div className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Workflow</div>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">How Kodeistry works</h2>
+            <div className={styles.sectionEyebrow}>Workflow</div>
+            <h2 className={styles.sectionHeading}>How Kodeistry works</h2>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
             {steps.map((step, index) => (
-              <div key={step} className="rounded-xl border bg-card p-6">
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-secondary font-semibold">{index + 1}</div>
+              <div key={step} data-bug-card className={styles.voxelCard}>
+                <div className={styles.stepNumber}>{index + 1}</div>
                 <p className="text-sm text-muted-foreground">{step}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="border-t bg-card/30">
+        <section className={styles.bottomBand}>
           <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-4 py-16 text-center sm:px-6 lg:flex-row lg:text-left lg:px-8">
             <div>
-              <div className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Ready to review smarter?</div>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight">Ship safer code with AI-assisted PR review</h2>
+              <div className={styles.sectionEyebrow}>Ready to review smarter?</div>
+              <h2 className={styles.sectionHeading}>Ship safer code with AI-assisted PR review</h2>
             </div>
-            <Link href="/register">
-              <Button size="lg">Get Started <ArrowUpRight className="ml-2 h-4 w-4" /></Button>
-            </Link>
+            <Link href="/register" className={styles.primaryCta}>Get Started <ArrowUpRight className="h-4 w-4" /></Link>
           </div>
         </section>
       </main>
 
-      <footer className="mx-auto max-w-7xl px-4 py-8 text-sm text-muted-foreground sm:px-6 lg:px-8">
+      <footer className={"mx-auto max-w-7xl px-4 py-8 text-sm sm:px-6 lg:px-8 " + styles.siteFooter}>
         <div className="flex flex-col justify-between gap-4 border-t pt-6 sm:flex-row">
           <div>© 2026 Kodeistry</div>
-          <div className="flex gap-6">
+          <div className={"flex flex-wrap items-center gap-x-6 gap-y-3 " + styles.footerLinks}>
             <a href="#product" className="hover:text-foreground">Product</a>
             <Link href="/privacy" className="hover:text-foreground">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-foreground">Terms &amp; Conditions</Link>
+            <a href="https://www.linkedin.com/in/mohdmustufa" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-foreground">
+              <svg className="size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854V1.146zM4.943 13.394V6.169H2.542v7.225h2.401zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.521-1.248-1.342-1.248S2.4 3.225 2.4 3.934c0 .694.521 1.248 1.327 1.248h.016zm4.908 8.212V9.359c0-.216.016-.432.08-.586.174-.432.57-.879 1.236-.879.872 0 1.22.663 1.22 1.634v3.866h2.4V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.192V6.169h-2.4c.03.678 0 7.225 0 7.225h2.393z" />
+              </svg>
+              LinkedIn
+            </a>
+            <a href="https://github.com/Mustufaa" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-foreground">
+              <svg className="size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.65 7.65 0 0 1 8 4.85c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+              </svg>
+              GitHub
+            </a>
           </div>
         </div>
       </footer>
+      <CrawlingBug />
     </div>
   );
 }

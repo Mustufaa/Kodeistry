@@ -6,11 +6,12 @@ import { cn } from "@/lib/utils";
 export function BrandMark({ className }: { className?: string }) {
   return (
     <Image
-      src="/kodeistry-logo.png"
+      src="/kodeistry-icon.png"
       alt=""
       width={36}
       height={36}
       aria-hidden="true"
+      unoptimized
       className={cn("size-9 shrink-0 object-contain", className)}
     />
   );
