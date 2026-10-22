@@ -2,6 +2,15 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api";
 
 export function apiUrl(path: string) { return `${API_BASE}${path}`; }
 
+const isNgrokApi = [".ngrok-free.dev", ".ngrok-free.app", ".ngrok.app", ".ngrok.io"]
+  .some((suffix) => new URL(API_BASE).hostname.endsWith(suffix));
+
+export function apiHeaders(initial?: HeadersInit) {
+  const headers = new Headers(initial);
+  if (isNgrokApi) headers.set("ngrok-skip-browser-warning", "true");
+  return headers;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) { super(message); this.name = "ApiError"; this.status = status; }
@@ -19,7 +28,7 @@ async function csrfToken() {
   const cookieToken = csrfCookie();
   if (cookieToken) return cookieToken;
   if (crossOriginCsrfToken) return crossOriginCsrfToken;
-  const response = await fetch(`${API_BASE}/auth/csrf`, { credentials: "include" });
+  const response = await fetch(`${API_BASE}/auth/csrf`, { credentials: "include", headers: apiHeaders() });
   if (!response.ok) throw new ApiError("Unable to initialize a secure session.", response.status);
   const data = await response.json() as { csrf_token: string };
   crossOriginCsrfToken = data.csrf_token;
@@ -30,7 +39,7 @@ const PUBLIC_AUTH_PATHS = new Set(["/auth/login", "/auth/register", "/auth/forgo
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const method = (options.method ?? "GET").toUpperCase();
-  const headers = new Headers(options.headers);
+  const headers = apiHeaders(options.headers);
   if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (!["GET", "HEAD", "OPTIONS"].includes(method) && !PUBLIC_AUTH_PATHS.has(path)) {
     const csrf = await csrfToken();

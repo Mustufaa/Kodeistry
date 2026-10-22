@@ -53,13 +53,13 @@ async def get_dashboard_summary(
         select(func.count())
         .select_from(ReviewFinding)
         .join(ReviewRun, ReviewFinding.review_run_id == ReviewRun.id)
-        .where(ReviewRun.tenant_id == tenant_id)
+        .where(ReviewRun.tenant_id == tenant_id, ReviewFinding.tracked_finding_id.is_(None))
     ) or 0
     critical_findings_count = await db.scalar(
         select(func.count())
         .select_from(ReviewFinding)
         .join(ReviewRun, ReviewFinding.review_run_id == ReviewRun.id)
-        .where(ReviewRun.tenant_id == tenant_id, ReviewFinding.severity == "critical")
+        .where(ReviewRun.tenant_id == tenant_id, ReviewFinding.tracked_finding_id.is_(None), ReviewFinding.severity == "critical")
     ) or 0
     pull_requests_count = len((await db.execute(
         select(ReviewRun.repository_id, ReviewRun.pull_request_number)
@@ -74,7 +74,7 @@ async def get_dashboard_summary(
             func.max(ReviewRun.completed_at).label("last_review_at"),
         )
         .outerjoin(ReviewRun, ReviewRun.repository_id == Repository.id)
-        .outerjoin(ReviewFinding, ReviewFinding.review_run_id == ReviewRun.id)
+        .outerjoin(ReviewFinding, (ReviewFinding.review_run_id == ReviewRun.id) & ReviewFinding.tracked_finding_id.is_(None))
         .where(Repository.tenant_id == tenant_id, Repository.is_active.is_(True))
         .group_by(Repository.id)
         .order_by(Repository.full_name)

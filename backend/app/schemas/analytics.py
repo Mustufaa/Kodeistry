@@ -76,6 +76,12 @@ class AnalyticsFinding(BaseModel):
     recommended_approach: str | None = None
     verification_steps: str | None = None
     status: str
+    verification_status: str = "OPEN"
+    triage_status: str = "ACTIVE"
+    tracked_finding_id: int | None = None
+    checked_commit_sha: str | None = None
+    checked_at: datetime | None = None
+    verification_reason: str | None = None
     created_at: datetime
     resolved_at: datetime | None = None
     github_url: str | None = None
@@ -98,3 +104,4 @@ class AnalyticsResponse(BaseModel):
 
 class FindingStatusUpdate(BaseModel):
     status: str
+    reason: str = Field(min_length=3, max_length=2000)

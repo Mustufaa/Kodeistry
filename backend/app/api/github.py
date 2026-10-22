@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from json import JSONDecodeError
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -32,6 +32,7 @@ from app.models.review_run import (
 )
 
 from app.models.review_finding import ReviewFinding
+from app.services.fix_queue import set_head_and_enqueue, attach_observations
 
 from app.services.repository_service import (
     get_repository_for_installation,
@@ -288,6 +289,19 @@ async def github_webhook(
         pull_number=pull_number,
     )
 
+    lock_key = int.from_bytes(hashlib.sha256(f"{connected_repository.id}/{pull_number}/{commit_sha}".encode()).digest()[:8], "big", signed=True)
+    await db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_key})
+    await set_head_and_enqueue(db, connected_repository.id, pull_number, commit_sha)
+    existing = await db.scalar(select(ReviewRun).where(
+        ReviewRun.repository_id == connected_repository.id,
+        ReviewRun.pull_request_number == pull_number,
+        ReviewRun.commit_sha == commit_sha,
+        ReviewRun.status.in_([ReviewRunStatus.RUNNING.value, ReviewRunStatus.COMPLETED.value]),
+    ))
+    if existing:
+        await db.commit()
+        return {"message": "Commit already reviewed.", "review_run_id": existing.id, "review_run_status": existing.status}
+
     # --------------------------------------------------------
     # 6. Create ReviewRun
     # --------------------------------------------------------
@@ -342,21 +356,23 @@ async def github_webhook(
         # 10. Post inline review to GitHub
         # ----------------------------------------------------
 
-        github_review = await post_review_to_github(
-            installation_id=installation_id,
-            owner=owner,
-            repo=repo,
-            pull_number=pull_number,
-            review_result=review_result,
+        latest_sha = await client.get_pull_request_commit_sha(
+            installation_id=installation_id, owner=owner, repo=repo, pull_number=pull_number,
+        )
+        github_review = (
+            await post_review_to_github(
+                installation_id=installation_id, owner=owner, repo=repo,
+                pull_number=pull_number, review_result=review_result, commit_id=commit_sha,
+            ) if latest_sha == commit_sha else {"posted": False, "message": "PR head changed during review."}
         )
 
         # ----------------------------------------------------
         # 11. Save individual review findings
         # ----------------------------------------------------
 
+        persisted_findings = []
         for finding in review_result.findings:
-            db.add(
-                ReviewFinding(
+            persisted = ReviewFinding(
                     review_run_id=review_run.id,
                     filename=finding.filename,
                     line=finding.line,
@@ -368,7 +384,11 @@ async def github_webhook(
                     recommended_approach=finding.recommended_approach,
                     verification_steps=finding.verification_steps,
                 )
-            )
+            db.add(persisted)
+            persisted_findings.append(persisted)
+
+        await db.flush()
+        await attach_observations(db, review_run, persisted_findings, review_files)
 
         # ----------------------------------------------------
         # 12. Mark ReviewRun as completed

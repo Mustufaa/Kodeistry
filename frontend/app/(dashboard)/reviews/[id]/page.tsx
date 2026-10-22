@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check, Clipboard, FileCode2, GitCommitHorizontal, GitPullRequest, ShieldAlert, Sparkles } from "lucide-react";
 
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -15,20 +15,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentTenant } from "@/hooks/use-current-tenant";
 import { getRepositories } from "@/lib/api/repositories";
 import { getReview } from "@/lib/api/reviews";
-import { updateFindingStatus } from "@/lib/api/analytics";
 import { toast } from "sonner";
 import { formatDate, shortSha } from "@/lib/format";
 
 export default function ReviewDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { tenantId } = useCurrentTenant();
-  const queryClient = useQueryClient();
   const [copied, setCopied] = useState("");
-  const reviewQuery = useQuery({ queryKey: ["review", tenantId, id], queryFn: () => getReview(tenantId!, Number(id)), enabled: !!tenantId && !!id });
+  const reviewQuery = useQuery({ queryKey: ["review", tenantId, id], queryFn: () => getReview(tenantId!, Number(id)), enabled: !!tenantId && !!id, refetchInterval: (query) => query.state.data?.findings?.some((finding) => finding.verification_status === "RECHECKING") ? 3000 : false });
   const repositoriesQuery = useQuery({ queryKey: ["repositories", tenantId], queryFn: () => getRepositories(tenantId!), enabled: !!tenantId });
   const review = reviewQuery.data;
   const repository = repositoriesQuery.data?.find((repo) => repo.id === review?.repository_id);
-  const statusMutation = useMutation({ mutationFn: ({ findingId, status }: { findingId: number; status: "resolved" | "dismissed" }) => updateFindingStatus(tenantId!, findingId, status), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["review", tenantId, id] }); queryClient.invalidateQueries({ queryKey: ["findings", tenantId] }); queryClient.invalidateQueries({ queryKey: ["analytics", tenantId] }); toast.success("Finding updated"); }, onError: () => toast.error("Could not update the finding") });
   const severityCounts = useMemo(() => {
     const result = { critical: 0, high: 0, medium: 0, low: 0 };
     for (const finding of review?.findings ?? []) {
@@ -58,7 +55,7 @@ export default function ReviewDetailPage() {
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6" aria-label="Review summary">
         <Card className="sm:col-span-2"><CardContent className="flex h-full items-center gap-4 p-5"><div className="grid size-10 place-items-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400"><Sparkles className="size-5" /></div><div><p className="text-xs text-muted-foreground">Review status</p><div className="mt-2"><StatusBadge value={review.status} /></div></div></CardContent></Card>
         {([
-          ["Total", review.findings_count, "text-foreground"],
+          ["Observed in review", review.findings_count, "text-foreground"],
           ["Critical", severityCounts.critical, "text-red-600 dark:text-red-400"],
           ["High", severityCounts.high, "text-orange-400"],
           ["Medium", severityCounts.medium, "text-amber-700 dark:text-amber-400"],
@@ -76,7 +73,7 @@ export default function ReviewDetailPage() {
                 const key = `${finding.filename}-${finding.line}-${index}`;
                 return (
                   <article key={key} className="p-5 sm:p-6">
-                    <div className="flex flex-wrap items-center gap-2"><StatusBadge value={finding.severity} /><span className="rounded-md border bg-background px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">{finding.category}</span></div>
+                    <div className="flex flex-wrap items-center gap-2"><StatusBadge value={finding.severity} /><StatusBadge value={finding.verification_status} /><StatusBadge value={finding.triage_status} /><span className="rounded-md border bg-background px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">{finding.category}</span></div>
                     <div className="mt-4 flex items-center gap-2 font-mono text-xs text-muted-foreground"><FileCode2 className="size-4" /><span className="break-all text-foreground">{finding.filename}</span><span>:</span><span>{finding.line}</span></div>
                     <p className="mt-4 text-sm leading-6 text-foreground/90">{finding.message}</p>
                     {finding.suggestion ? (
@@ -85,7 +82,7 @@ export default function ReviewDetailPage() {
                         <pre className="max-h-80 overflow-auto p-4 font-mono text-xs leading-6 text-foreground/85"><code>{finding.suggestion}</code></pre>
                       </div>
                     ) : null}
-                    <FindingResolution finding={finding} onResolve={() => statusMutation.mutate({ findingId: finding.id, status: "resolved" })} onDismiss={() => statusMutation.mutate({ findingId: finding.id, status: "dismissed" })} />
+                    <FindingResolution finding={finding} />
                   </article>
                 );
               })}</div>

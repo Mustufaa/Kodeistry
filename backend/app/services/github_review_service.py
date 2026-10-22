@@ -36,6 +36,7 @@ async def post_review_to_github(
     repo: str,
     pull_number: int,
     review_result: ReviewResult,
+    commit_id: str | None = None,
 ) -> dict:
     """
     Create one submitted GitHub review containing
@@ -52,7 +53,7 @@ async def post_review_to_github(
 
     client = GitHubClient()
 
-    commit_id = (
+    commit_id = commit_id or (
         await client.get_pull_request_commit_sha(
             installation_id=installation_id,
             owner=owner,

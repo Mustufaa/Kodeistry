@@ -65,6 +65,12 @@ class PersistedReviewFinding(ReviewFinding):
     pull_request_number: int
     commit_sha: str
     status: str
+    verification_status: str = "OPEN"
+    triage_status: str = "ACTIVE"
+    tracked_finding_id: int | None = None
+    checked_commit_sha: str | None = None
+    checked_at: datetime | None = None
+    verification_reason: str | None = None
     created_at: datetime
     resolved_at: datetime | None = None
     github_url: str | None = None
@@ -114,9 +120,9 @@ class ReviewRunResponse(BaseModel):
 
 class ReviewRunDetailResponse(ReviewRunResponse):
     """
-    Detailed review run including individual findings.
+    Detailed review run including persisted finding identities and tracking state.
     """
 
-    findings: list[ReviewFinding] = Field(
+    findings: list[PersistedReviewFinding] = Field(
         default_factory=list,
     )

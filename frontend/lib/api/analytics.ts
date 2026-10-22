@@ -1,4 +1,4 @@
-import { apiRequest, apiUrl } from "./client";
+import { apiHeaders, apiRequest, apiUrl } from "./client";
 import type { AnalyticsFilters, AnalyticsFinding, AnalyticsResponse, FindingStatus } from "@/types/analytics";
 
 export function analyticsQuery(filters: AnalyticsFilters) {
@@ -20,15 +20,15 @@ export function getFindings(tenantId: number, filters: AnalyticsFilters) {
   return apiRequest<AnalyticsFinding[]>(`/tenants/${tenantId}/findings?${analyticsQuery(filters)}`);
 }
 
-export function updateFindingStatus(tenantId: number, findingId: number, status: FindingStatus) {
+export function updateFindingStatus(tenantId: number, findingId: number, status: FindingStatus, reason: string) {
   return apiRequest<AnalyticsFinding>(`/tenants/${tenantId}/findings/${findingId}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, reason }),
   });
 }
 
 export async function downloadFindingsCsv(tenantId: number, filters: AnalyticsFilters, filename?: string) {
-  const response = await fetch(apiUrl(`/tenants/${tenantId}/findings/export?${analyticsQuery(filters)}`), { credentials: "include" });
+  const response = await fetch(apiUrl(`/tenants/${tenantId}/findings/export?${analyticsQuery(filters)}`), { credentials: "include", headers: apiHeaders() });
   if (!response.ok) throw new Error("Unable to export findings.");
   const blob = await response.blob();
   const disposition = response.headers.get("Content-Disposition") ?? "";

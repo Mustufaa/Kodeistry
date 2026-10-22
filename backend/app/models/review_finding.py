@@ -75,6 +75,16 @@ class ReviewFinding(Base):
         nullable=True,
     )
 
+    fingerprint: Mapped[str | None] = mapped_column(String(64), index=True)
+    source_anchor: Mapped[str | None] = mapped_column(String(64))
+    tracked_finding_id: Mapped[int | None] = mapped_column(ForeignKey("review_findings.id", ondelete="SET NULL"), index=True)
+    verification_status: Mapped[str] = mapped_column(String(20), nullable=False, default="OPEN", server_default="OPEN")
+    triage_status: Mapped[str] = mapped_column(String(20), nullable=False, default="ACTIVE", server_default="ACTIVE")
+    triage_reason: Mapped[str | None] = mapped_column(Text)
+    checked_commit_sha: Mapped[str | None] = mapped_column(String(255))
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    verification_reason: Mapped[str | None] = mapped_column(Text)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

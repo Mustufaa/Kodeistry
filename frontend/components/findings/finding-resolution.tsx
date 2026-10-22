@@ -1,49 +1,134 @@
 "use client";
 
-import { useState } from "react";
-import { Check, ChevronDown, Clipboard, ExternalLink, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Clipboard, ExternalLink, RefreshCw, Sparkles, X } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { StatusBadge } from "@/components/dashboard/status-badge";
 import { Button } from "@/components/ui/button";
-import { buildFixPrompt, historicalApproach, historicalWhy, verificationFor } from "@/lib/fix-prompt";
+import { useCurrentTenant } from "@/hooks/use-current-tenant";
+import { generateFixAssistant, getFixAssistant, getTracking, recheckFinding, triageFinding } from "@/lib/api/fix-workflow";
+import { formatDate, shortSha } from "@/lib/format";
 import type { AnalyticsFinding } from "@/types/analytics";
+import type { ReviewFinding } from "@/types/review";
+import type { TriageStatus } from "@/types/fix-workflow";
 
-async function copyPrompt(finding: AnalyticsFinding) {
-  await navigator.clipboard.writeText(buildFixPrompt(finding));
-  toast.success("Prompt copied");
-}
+type Finding = AnalyticsFinding | ReviewFinding;
 
-export function FixPromptDialog({ finding, open, onClose }: { finding: AnalyticsFinding; open: boolean; onClose: () => void }) {
-  if (!open) return null;
-  return <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="fix-prompt-title">
-    <button aria-label="Close dialog" className="absolute inset-0 bg-black/70" onClick={onClose} />
-    <div className="relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border bg-card shadow-2xl">
-      <div className="flex items-center justify-between border-b px-5 py-4"><div><h2 id="fix-prompt-title" className="text-base font-semibold">Fix this issue</h2><p className="mt-1 text-xs text-muted-foreground">Review the context before giving this prompt to a coding agent.</p></div><Button size="icon" variant="ghost" onClick={onClose} aria-label="Close"><X className="size-4" /></Button></div>
-      <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap p-5 font-mono text-[13px] leading-6">{buildFixPrompt(finding)}</pre>
-      <div className="flex justify-end border-t p-4"><Button onClick={() => copyPrompt(finding)}><Clipboard className="size-4" />Copy Prompt</Button></div>
-    </div>
-  </div>;
-}
+export function FindingResolution({ finding, compact = false }: { finding: Finding; compact?: boolean }) {
+  const { tenantId } = useCurrentTenant();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [triage, setTriage] = useState<TriageStatus | null>(null);
+  const [reason, setReason] = useState("");
+  const panel = useRef<HTMLDivElement>(null);
+  const suggestionQuery = useQuery({
+    queryKey: ["fix-assistant", tenantId, finding.id],
+    queryFn: () => getFixAssistant(tenantId!, finding.id),
+    enabled: open && !!tenantId,
+    refetchInterval: (query) => ["QUEUED", "RUNNING"].includes(query.state.data?.state ?? "") ? 2500 : false,
+  });
+  const trackingQuery = useQuery({
+    queryKey: ["tracking", tenantId, finding.id],
+    queryFn: () => getTracking(tenantId!, finding.id),
+    enabled: open && !!tenantId,
+    refetchInterval: (query) => query.state.data?.verification_status === "RECHECKING" ? 2500 : false,
+  });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["tracking", tenantId, finding.id] });
+    queryClient.invalidateQueries({ queryKey: ["findings", tenantId] });
+    queryClient.invalidateQueries({ queryKey: ["review", tenantId] });
+    queryClient.invalidateQueries({ queryKey: ["analytics", tenantId] });
+  };
+  const generate = useMutation({
+    mutationFn: () => generateFixAssistant(tenantId!, finding.id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["fix-assistant", tenantId, finding.id] }),
+    onError: (error) => toast.error(error.message),
+  });
+  const recheck = useMutation({
+    mutationFn: () => recheckFinding(tenantId!, finding.id),
+    onSuccess: () => { invalidate(); toast.success("Recheck queued"); },
+    onError: (error) => toast.error(error.message),
+  });
+  const updateTriage = useMutation({
+    mutationFn: () => triageFinding(tenantId!, finding.id, triage!, reason.trim()),
+    onSuccess: () => { invalidate(); setTriage(null); setReason(""); toast.success("Triage updated"); },
+    onError: (error) => toast.error(error.message),
+  });
 
-export function FindingResolution({ finding, onResolve, onDismiss, compact = false }: { finding: AnalyticsFinding; onResolve?: () => void; onDismiss?: () => void; compact?: boolean }) {
-  const [expanded, setExpanded] = useState(false);
-  const [promptOpen, setPromptOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Tab" || !panel.current) return;
+      const elements = Array.from(panel.current.querySelectorAll<HTMLElement>("button:not([disabled]), textarea:not([disabled]), a[href]"));
+      if (!elements.length) return;
+      const first = elements[0], last = elements[elements.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    panel.current?.querySelector<HTMLElement>("button")?.focus();
+    return () => { document.removeEventListener("keydown", onKey); previous?.focus(); };
+  }, [open]);
+
+  async function copyPrompt() {
+    if (!suggestionQuery.data?.prompt) return;
+    try { await navigator.clipboard.writeText(suggestionQuery.data.prompt); toast.success("Fix prompt copied"); }
+    catch { toast.error("Could not copy prompt"); }
+  }
+
+  const suggestion = suggestionQuery.data?.suggestion;
+  const tracking = trackingQuery.data;
+  const verification = tracking?.verification_status ?? finding.verification_status ?? "OPEN";
+  const triageStatus = tracking?.triage_status ?? finding.triage_status ?? "ACTIVE";
+
   return <div className={compact ? "" : "mt-5"}>
-    <div className="flex flex-wrap gap-2">
-      <Button size="sm" variant="outline" onClick={() => setExpanded((value) => !value)}><ChevronDown className={`size-4 transition ${expanded ? "rotate-180" : ""}`} />How to Fix</Button>
-      <Button size="sm" variant="outline" onClick={() => copyPrompt(finding)}><Clipboard className="size-4" />Copy Fix Prompt</Button>
-      <Button size="sm" variant="ghost" onClick={() => setPromptOpen(true)}>View Prompt</Button>
-      {finding.github_url ? <Button asChild size="sm" variant="ghost"><a href={finding.github_url} target="_blank" rel="noreferrer"><ExternalLink className="size-4" />Open on GitHub</a></Button> : null}
-      {onResolve && finding.status !== "resolved" ? <Button size="sm" variant="ghost" onClick={onResolve}><Check className="size-4" />Resolve</Button> : null}
-      {onDismiss && finding.status !== "dismissed" ? <Button size="sm" variant="ghost" onClick={onDismiss}>Dismiss</Button> : null}
+    <div className="flex flex-wrap items-center gap-2">
+      <StatusBadge value={verification} />
+      {triageStatus !== "ACTIVE" ? <StatusBadge value={triageStatus} /> : null}
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Sparkles className="size-4" />Fix Assistant & tracking</Button>
     </div>
-    {expanded ? <div className="mt-4 grid gap-5 rounded-lg border bg-background p-5 text-sm leading-6">
-      <section><h3 className="font-medium">Problem</h3><p className="mt-1 text-muted-foreground">{finding.message}</p></section>
-      <section><h3 className="font-medium">Why it matters</h3><p className="mt-1 text-muted-foreground">{finding.why_it_matters || historicalWhy(finding)}</p></section>
-      <section><h3 className="font-medium">Recommended approach</h3><p className="mt-1 text-muted-foreground">{finding.recommended_approach || historicalApproach(finding)}</p></section>
-      {finding.suggestion ? <section><h3 className="font-medium">Suggested Fix</h3><pre className="mt-2 max-h-72 overflow-auto rounded-md border bg-card p-4 font-mono text-[13px] leading-6"><code>{finding.suggestion}</code></pre></section> : null}
-      <section><h3 className="font-medium">Verify the fix</h3><p className="mt-1 text-muted-foreground">{finding.verification_steps || verificationFor(finding)}</p></section>
+    {open ? <div className="fixed inset-0 z-[70]" role="presentation">
+      <button type="button" className="absolute inset-0 bg-black/70" aria-label="Close finding details" onClick={() => setOpen(false)} />
+      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="finding-dialog-title" className="absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col border-l bg-card shadow-2xl">
+        <header className="flex items-start justify-between gap-4 border-b p-5">
+          <div><h2 id="finding-dialog-title" className="text-lg font-semibold">Finding #{finding.id}</h2><p className="mt-1 break-all font-mono text-xs text-muted-foreground">{finding.filename}:{finding.line} · {shortSha(finding.commit_sha)}</p></div>
+          <Button size="icon" variant="ghost" aria-label="Close" onClick={() => setOpen(false)}><X className="size-4" /></Button>
+        </header>
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5 text-sm">
+          <section className="space-y-2"><div className="flex flex-wrap gap-2"><StatusBadge value={finding.severity} /><StatusBadge value={verification} /><StatusBadge value={triageStatus} /></div><p className="leading-6">{finding.message}</p><p className="text-xs text-muted-foreground">Historical review finding at {finding.commit_sha}. Current verification is shown below.</p></section>
+          <section className="space-y-3 border-t pt-5">
+            <h3 className="font-semibold">Fix Assistant</h3>
+            {suggestionQuery.isLoading ? <p role="status">Loading suggestion…</p> : suggestionQuery.isError ? <div role="alert">Could not load the suggestion. <Button size="sm" variant="outline" onClick={() => suggestionQuery.refetch()}>Retry</Button></div> : null}
+            {suggestionQuery.data ? <p className="font-mono text-xs text-muted-foreground">Assistant source commit: {shortSha(suggestionQuery.data.source_commit)}</p> : null}
+            {suggestionQuery.data?.stale ? <p className="rounded-md border border-amber-500/40 p-3 text-amber-700 dark:text-amber-300">This suggestion refers to an older commit. Recheck the current PR before applying it.</p> : null}
+            {suggestionQuery.data?.state === "EMPTY" || suggestionQuery.data?.state === "FAILED" ? <div className="space-y-2"><p className="text-muted-foreground">{suggestionQuery.data.state === "FAILED" ? suggestionQuery.data.error_code === "SOURCE_UNAVAILABLE" ? "Source at the analyzed commit is unavailable or repository access was denied." : "Generation failed. You can retry." : "Generate a suggestion from the analyzed commit."}</p><Button size="sm" onClick={() => generate.mutate()} disabled={generate.isPending}>{generate.isPending ? "Queueing…" : suggestionQuery.data.state === "FAILED" ? "Retry generation" : "Generate suggestion"}</Button></div> : null}
+            {["QUEUED", "RUNNING"].includes(suggestionQuery.data?.state ?? "") ? <p role="status">Generating a source-bound suggestion…</p> : null}
+            {suggestion ? <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">Generated suggestion requiring code review. No tests were executed by Kodeistry.</p>
+              {([["Explanation", suggestion.explanation], ["When it occurs", suggestion.conditions], ["Practical impact", suggestion.impact], ["Suggested fix", suggestion.suggested_fix], ["Regression test suggestion", suggestion.regression_test]] as const).filter(([, value]) => !!value).map(([label, value]) => <div key={label}><h4 className="font-medium">{label}</h4><p className="mt-1 whitespace-pre-wrap leading-6 text-muted-foreground">{value}</p></div>)}
+              <div><h4 className="font-medium">Reviewable unified diff</h4>{suggestion.unified_diff ? <pre className="mt-2 max-h-80 overflow-auto rounded-md border bg-background p-3 font-mono text-xs">{suggestion.unified_diff}</pre> : <p className="mt-1 text-muted-foreground">No safe patch could be derived from the available context.</p>}</div>
+            </div> : null}
+            {suggestionQuery.data?.prompt ? <Button size="sm" variant="outline" onClick={copyPrompt}><Clipboard className="size-4" />Copy fix prompt</Button> : null}
+          </section>
+          <section className="space-y-3 border-t pt-5">
+            <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Fix tracking</h3><Button size="sm" variant="outline" disabled={recheck.isPending || triageStatus !== "ACTIVE"} onClick={() => recheck.mutate()}><RefreshCw className="size-4" />Recheck now</Button></div>
+            {trackingQuery.isLoading ? <p role="status">Loading tracking…</p> : trackingQuery.isError ? <div role="alert">Could not load tracking. <Button size="sm" variant="outline" onClick={() => trackingQuery.refetch()}>Retry</Button></div> : null}
+            {tracking ? <div className="space-y-2"><p><StatusBadge value={tracking.verification_status} /> {tracking.stale ? <span className="text-amber-700 dark:text-amber-300">Pending current commit check</span> : null}</p><p className="text-muted-foreground">{tracking.verification_reason || "No verification completed yet."}</p><p className="font-mono text-xs text-muted-foreground">Last checked: {tracking.checked_commit_sha ? shortSha(tracking.checked_commit_sha) : "—"} · {tracking.checked_at ? formatDate(tracking.checked_at) : "Never"}</p></div> : null}
+            {tracking?.history.length ? <div><h4 className="font-medium">Verification history</h4><ol className="mt-2 space-y-2">{tracking.history.map((item) => <li key={item.id} className="rounded-md border p-3"><div className="flex flex-wrap items-center gap-2"><StatusBadge value={item.status} /><span className="font-mono text-xs">{shortSha(item.checked_commit_sha)}</span><span className="text-xs text-muted-foreground">{formatDate(item.checked_at)}</span></div><p className="mt-2 text-muted-foreground">{item.reason}</p>{item.evidence?.path ? <p className="mt-1 font-mono text-xs">{item.evidence.path}{item.evidence.line ? `:${item.evidence.line}` : ""}</p> : null}{item.evidence?.assessment ? <p className="mt-1 text-xs text-muted-foreground">{item.evidence.assessment}</p> : null}</li>)}</ol></div> : <p className="text-muted-foreground">No completed rechecks yet.</p>}
+          </section>
+          <section className="space-y-3 border-t pt-5">
+            <h3 className="font-semibold">Triage</h3><p className="text-muted-foreground">Triage is separate from verification. Dismissal does not count as a verified fix.</p>
+            <div className="flex flex-wrap gap-2">{(["ACTIVE", "DISMISSED", "FALSE_POSITIVE"] as const).map((value) => <Button key={value} size="sm" variant={triageStatus === value ? "default" : "outline"} onClick={() => { setTriage(value); setReason(""); }}>{value.replace("_", " ")}</Button>)}</div>
+            {triage ? <div className="space-y-2"><label className="block font-medium" htmlFor="triage-reason">Reason for {triage.toLowerCase().replace("_", " ")}</label><textarea id="triage-reason" className="min-h-20 w-full rounded-md border bg-background p-2" value={reason} maxLength={2000} onChange={(event) => setReason(event.target.value)} /><Button size="sm" disabled={reason.trim().length < 3 || updateTriage.isPending} onClick={() => updateTriage.mutate()}>Save triage</Button></div> : null}
+            {tracking?.triage_reason ? <p className="text-xs text-muted-foreground">Recorded reason: {tracking.triage_reason}</p> : null}
+          </section>
+          {finding.github_url ? <a className="inline-flex items-center gap-2 text-sm text-primary underline" href={finding.github_url} target="_blank" rel="noreferrer"><ExternalLink className="size-4" />Open PR on GitHub</a> : null}
+        </div>
+      </div>
     </div> : null}
-    <FixPromptDialog finding={finding} open={promptOpen} onClose={() => setPromptOpen(false)} />
   </div>;
 }

@@ -12,6 +12,7 @@ from app.api.review import router as review_router
 from app.api.dashboard import router as dashboard_router
 from app.api.onboarding import router as onboarding_router
 from app.api.analytics import router as analytics_router
+from app.api.fix_workflow import router as fix_workflow_router
 
 app = FastAPI(
     title="Kodeistry API",
@@ -40,6 +41,7 @@ app.include_router(review_router)
 app.include_router(dashboard_router)
 app.include_router(onboarding_router)
 app.include_router(analytics_router)
+app.include_router(fix_workflow_router)
 
 @app.get("/")
 async def root():

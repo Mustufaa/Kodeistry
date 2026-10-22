@@ -28,6 +28,12 @@ export interface AnalyticsFinding {
   recommended_approach?: string | null;
   verification_steps?: string | null;
   status: FindingStatus;
+  verification_status: import("./fix-workflow").VerificationStatus;
+  triage_status: import("./fix-workflow").TriageStatus;
+  tracked_finding_id?: number | null;
+  checked_commit_sha?: string | null;
+  checked_at?: string | null;
+  verification_reason?: string | null;
   created_at: string;
   resolved_at?: string | null;
   github_url?: string | null;

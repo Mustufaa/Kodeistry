@@ -24,7 +24,7 @@ Repository permissions:
 
 - Metadata: Read-only (GitHub enables this required permission automatically).
 - Pull requests: Read and write (read PR details/files and publish review comments).
-- Contents: No access is required by the current implementation.
+- Contents: Read-only (Fix Assistant and Fix Tracking read source at specific commits). Existing installations must approve this added permission.
 
 Account permissions:
 

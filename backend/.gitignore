@@ -18,3 +18,9 @@ build/
 # Test files
 test_*.py
 *_test.py
+
+# Keep fix-workflow regression tests in version control.
+!tests/
+!tests/test_fix_workflow.py
+!tests/test_review_detail_response.py
+tests/.gitkeep

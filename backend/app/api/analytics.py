@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
+from app.api.fix_workflow import TriageUpdate, authorized, update_triage
 from app.db.session import get_db
 from app.models.repository import Repository
 from app.models.review_finding import ReviewFinding
@@ -78,6 +79,7 @@ def finding_query(
         .join(Repository, ReviewRun.repository_id == Repository.id)
         .where(
             ReviewRun.tenant_id == tenant_id,
+            ReviewFinding.tracked_finding_id.is_(None),
             ReviewFinding.created_at >= start,
             ReviewFinding.created_at < end,
         )
@@ -117,6 +119,12 @@ def serialize_finding(row) -> AnalyticsFinding:
         recommended_approach=finding.recommended_approach,
         verification_steps=finding.verification_steps,
         status=finding.status,
+        verification_status=finding.verification_status,
+        triage_status=finding.triage_status,
+        tracked_finding_id=finding.tracked_finding_id,
+        checked_commit_sha=finding.checked_commit_sha,
+        checked_at=finding.checked_at,
+        verification_reason=finding.verification_reason,
         created_at=finding.created_at,
         resolved_at=finding.resolved_at,
         github_url=github_url,
@@ -277,24 +285,16 @@ async def update_finding_status(
     tenant_id: int, finding_id: int, payload: FindingStatusUpdate,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
-    await require_membership(tenant_id, current_user.id, db)
     normalized = payload.status.lower()
-    if normalized not in STATUSES:
-        raise HTTPException(status_code=422, detail="Status must be open, resolved, or dismissed")
-    row = (await db.execute(
-        select(ReviewFinding, ReviewRun, Repository)
-        .join(ReviewRun, ReviewFinding.review_run_id == ReviewRun.id)
-        .join(Repository, ReviewRun.repository_id == Repository.id)
-        .where(ReviewRun.tenant_id == tenant_id, ReviewFinding.id == finding_id)
-    )).one_or_none()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Finding not found")
-    finding = row[0]
-    finding.status = normalized
-    finding.resolved_at = datetime.now(timezone.utc) if normalized == "resolved" else None
-    await db.commit()
-    await db.refresh(finding)
-    return serialize_finding((finding, row[1], row[2]))
+    if normalized not in {"open", "dismissed"}:
+        raise HTTPException(status_code=422, detail="Use verification to resolve a finding; triage accepts open or dismissed.")
+    await update_triage(
+        tenant_id, finding_id,
+        TriageUpdate(status="ACTIVE" if normalized == "open" else "DISMISSED", reason=payload.reason),
+        current_user, db,
+    )
+    finding, review, repository, _ = await authorized(db, tenant_id, finding_id, current_user.id)
+    return serialize_finding((finding, review, repository))
 
 
 @router.get("/findings/export")
