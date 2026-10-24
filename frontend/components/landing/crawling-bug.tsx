@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import styles from "./crawling-bug.module.css";
+import { BUG_PAUSE_MIN, BUG_PAUSE_VARIATION, BUG_SPEED_DESKTOP, BUG_SPEED_MOBILE } from "./bug-motion";
 
 type Point = { x: number; y: number };
 type Box = { left: number; top: number; right: number; bottom: number };
@@ -234,7 +235,7 @@ function measureLayout(page: HTMLElement, radius: number) {
   return { points, obstacles, grid: makeGrid(width, height, radius, obstacles), width, height };
 }
 
-function PixelInsect() {
+export function PixelInsect() {
   return (
     <svg viewBox="0 0 48 48" className={styles.insectSvg} shapeRendering="crispEdges" focusable="false">
       <g className={styles.legOdd} style={{ transformOrigin: "16px 17px" }}>
@@ -275,12 +276,9 @@ function PixelInsect() {
 
 export function CrawlingBug() {
   const overlayRef = useRef<HTMLDivElement>(null);
-  const toggleRef = useRef<HTMLButtonElement>(null);
   const mascotRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
-  const controllerRef = useRef<((value: boolean) => void) | null>(null);
-  const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
     const overlay = overlayRef.current;
@@ -290,7 +288,6 @@ export function CrawlingBug() {
     const page = overlay?.parentElement;
     if (!overlay || !mascot || !body || !label || !page) return;
 
-    let isHidden = false;
     let radius = window.innerWidth <= 640 ? 22 : 32;
     let layout = measureLayout(page, radius);
     let position: Point | null = null;
@@ -417,7 +414,7 @@ export function CrawlingBug() {
 
     const tick = (time: number) => {
       frameId = 0;
-      if (isHidden || document.hidden) {
+      if (document.hidden) {
         stop();
         return;
       }
@@ -434,7 +431,7 @@ export function CrawlingBug() {
           setWalking(pauseFor <= 0);
         } else {
           if (!route.length) nextRoute();
-          let remaining = (window.innerWidth <= 640 ? 29 : 40) * delta;
+          let remaining = (window.innerWidth <= 640 ? BUG_SPEED_MOBILE : BUG_SPEED_DESKTOP) * delta;
           while (remaining > 0 && routeIndex < route.length && position) {
             const target = route[routeIndex];
             const distance = Math.hypot(target.x - position.x, target.y - position.y);
@@ -451,7 +448,7 @@ export function CrawlingBug() {
           }
           if (route.length && routeIndex >= route.length) {
             route = [];
-            pauseFor = 0.45 + Math.random() * 0.8;
+            pauseFor = BUG_PAUSE_MIN + Math.random() * BUG_PAUSE_VARIATION;
             setWalking(false);
           } else setWalking(route.length > 0);
           render();
@@ -470,7 +467,7 @@ export function CrawlingBug() {
     };
 
     const start = () => {
-      if (frameId || isHidden || document.hidden) return;
+      if (frameId || document.hidden) return;
       lastFrame = 0;
       mascot.dataset.paused = "false";
       frameId = window.requestAnimationFrame(tick);
@@ -501,13 +498,6 @@ export function CrawlingBug() {
       if (document.hidden) stop();
       else start();
     };
-
-    controllerRef.current = (value) => {
-      isHidden = value;
-      overlay.style.visibility = value ? "hidden" : "visible";
-      if (value) stop();
-      else start();
-    };
     pickStart();
     const observer = new ResizeObserver(scheduleMeasure);
     observer.observe(page);
@@ -519,7 +509,6 @@ export function CrawlingBug() {
 
     return () => {
       disposed = true;
-      controllerRef.current = null;
       stop();
       if (measureId) window.cancelAnimationFrame(measureId);
       observer.disconnect();
@@ -528,52 +517,21 @@ export function CrawlingBug() {
     };
   }, []);
 
-  useEffect(() => {
-    const button = toggleRef.current;
-    const footer = overlayRef.current?.parentElement?.querySelector("footer");
-    if (!button || !footer) return;
-
-    const updatePosition = () => {
-      const gap = window.innerWidth <= 640 ? 10 : 16;
-      const footerVisibleHeight = window.innerHeight - footer.getBoundingClientRect().top;
-      button.style.bottom = Math.max(gap, footerVisibleHeight + gap) + "px";
-    };
-
-    updatePosition();
-    window.addEventListener("scroll", updatePosition, { passive: true });
-    window.addEventListener("resize", updatePosition);
-    return () => {
-      window.removeEventListener("scroll", updatePosition);
-      window.removeEventListener("resize", updatePosition);
-    };
-  }, []);
-
-  const toggle = () => {
-    const next = !hidden;
-    setHidden(next);
-    controllerRef.current?.(next);
-  };
-
   return (
-    <>
-      <div ref={overlayRef} className={styles.overlay} data-bug-ui aria-hidden="true">
-        <div ref={mascotRef} className={styles.mascot} data-phase="walk" data-walking="false" data-paused="true">
-          <div ref={bodyRef} className={styles.insect}><PixelInsect /></div>
-          <span className={styles.scanBeam} />
-          <div ref={labelRef} className={styles.detectedLabel}>Bug detected</div>
-          <div className={styles.particles}>
-            {particleDirections.map(([x, y], index) => (
-              <span
-                key={index}
-                style={{ "--particle-x": x + "px", "--particle-y": y + "px" } as React.CSSProperties}
-              />
-            ))}
-          </div>
+    <div ref={overlayRef} className={styles.overlay} data-bug-ui aria-hidden="true">
+      <div ref={mascotRef} className={styles.mascot} data-landing-bug="page" data-motion="on" data-phase="walk" data-walking="false" data-paused="true">
+        <div ref={bodyRef} className={styles.insect}><PixelInsect /></div>
+        <span className={styles.scanBeam} />
+        <div ref={labelRef} className={styles.detectedLabel}>Bug detected</div>
+        <div className={styles.particles}>
+          {particleDirections.map(([x, y], index) => (
+            <span
+              key={index}
+              style={{ "--particle-x": x + "px", "--particle-y": y + "px" } as React.CSSProperties}
+            />
+          ))}
         </div>
       </div>
-      <button ref={toggleRef} type="button" className={styles.toggle} data-bug-ui onClick={toggle}>
-        {hidden ? "Show bug" : "Hide bug"}
-      </button>
-    </>
+    </div>
   );
 }

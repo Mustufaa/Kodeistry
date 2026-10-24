@@ -1,23 +1,17 @@
 import Link from "next/link";
 import { Pixelify_Sans } from "next/font/google";
-import { ArrowRight, ArrowUpRight, CheckCircle2, GitBranch, Lock, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Mail, Sparkles } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { BentoFeatures } from "@/components/landing/bento-features";
 import { CodeReviewAnimation } from "@/components/landing/code-review-animation";
 import { CrawlingBug } from "@/components/landing/crawling-bug";
+import { MacWindow } from "@/components/landing/mac-window";
+import { SectionInsect } from "@/components/landing/section-insect";
 import styles from "./landing-page.module.css";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 const pixelify = Pixelify_Sans({ variable: "--font-voxel", subsets: ["latin"], display: "swap", fallback: ["ui-monospace", "monospace"] });
-
-const features = [
-  { title: "Automated PR analysis", description: "Detect bugs, security issues, and quality flaws before merge.", icon: Sparkles },
-  { title: "GitHub-native workflow", description: "Review code in the context of your repositories and pull requests.", icon: GitBranch },
-  { title: "Actionable findings", description: "Every issue includes explanation, recommendation, and fix guidance.", icon: CheckCircle2 },
-  { title: "Security-first", description: "Priority ranking surfaces critical vulnerabilities quickly.", icon: ShieldCheck },
-  { title: "Developer velocity", description: "Keep teams moving with quicker, clearer review feedback.", icon: Zap },
-  { title: "Private by default", description: "Secure review workflows designed for teams and organizations.", icon: Lock },
-];
 
 const steps = [
   "Connect your GitHub App installation and repository.",
@@ -30,7 +24,7 @@ export default function Page() {
     <div className={pixelify.variable + " " + styles.landing}>
       <header className={styles.siteHeader}>
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <BrandLogo href="/" ariaLabel="Kodeistry home" />
+          <BrandLogo compact href="/" ariaLabel="Kodeistry home" />
 
           <div className={"hidden items-center gap-8 text-sm text-muted-foreground md:flex " + styles.navLinks}>
             <a href="#product" className="hover:text-foreground">Product</a>
@@ -67,7 +61,10 @@ export default function Page() {
               </div>
             </div>
 
-            <CodeReviewAnimation />
+            <div className={styles.heroPreviewTrack}>
+              <CodeReviewAnimation />
+              <SectionInsect path="hero" />
+            </div>
           </div>
         </section>
 
@@ -94,23 +91,13 @@ export default function Page() {
         </section>
 
         <section id="features" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="mb-10 max-w-2xl">
+          <div className="mb-6 max-w-2xl">
             <div className={styles.sectionEyebrow}>Features</div>
-            <h2 className={styles.sectionHeading}>Built for engineering teams</h2>
+            <h2 className={styles.sectionHeading}>A clearer path from pull request to fix</h2>
+            <p className="mt-4 text-muted-foreground">Review the change, understand the risk, and keep the whole team in the loop.</p>
           </div>
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {features.map(({ title, description, icon: Icon }) => (
-              <div key={title} data-bug-card className={styles.voxelCard}>
-                <div className={styles.tileIcon}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <h3 className={styles.cardTitle}>{title}</h3>
-                <p className={styles.cardBody}>{description}</p>
-              </div>
-            ))}
-          </div>
+          <BentoFeatures />
         </section>
-
         <section id="github" className={styles.sectionBand}>
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
             <div className="grid gap-10 lg:grid-cols-2">
@@ -120,17 +107,14 @@ export default function Page() {
                 <p className="mt-4 text-muted-foreground">Kodeistry plugs into GitHub App installation patterns and uses repository context, PR metadata, and review history to prioritize issues based on real code changes.</p>
               </div>
               <div data-bug-card className={styles.integrationPanel}>
-                <div className="w-full space-y-4">
-                  {[
-                    ["GitHub App installation", "Connected"],
-                    ["Repositories tracked", "12"],
-                    ["Review runs", "84"],
-                  ].map(([label, value]) => (
-                    <div key={label} className={styles.integrationRow}>
-                      <span className="text-sm text-muted-foreground">{label}</span>
-                      <span className={styles.integrationValue}>{value}</span>
+                <div className="w-full">
+                  <MacWindow title="GitHub App">
+                    <div className="space-y-3">
+                      <div className={styles.integrationRow}><span>Installation</span><span className={styles.integrationValue}>Connected</span></div>
+                      <div className={styles.integrationRow}><span>Pull request</span><span className={styles.integrationValue}>Review queued</span></div>
+                      <div className={styles.integrationRow}><span>Feedback</span><span className={styles.integrationValue}>Ready in GitHub</span></div>
                     </div>
-                  ))}
+                  </MacWindow>
                 </div>
               </div>
             </div>
@@ -184,11 +168,19 @@ export default function Page() {
 
       <footer className={"mx-auto max-w-7xl px-4 py-8 text-sm sm:px-6 lg:px-8 " + styles.siteFooter}>
         <div className="flex flex-col justify-between gap-4 border-t pt-6 sm:flex-row">
-          <div>© 2026 Kodeistry</div>
+          <div className="flex items-center gap-3">
+            <BrandLogo compact href="/" ariaLabel="Kodeistry home" />
+            <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+            <span>© 2026</span>
+          </div>
           <div className={"flex flex-wrap items-center gap-x-6 gap-y-3 " + styles.footerLinks}>
             <a href="#product" className="hover:text-foreground">Product</a>
             <Link href="/privacy" className="hover:text-foreground">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-foreground">Terms &amp; Conditions</Link>
+            <a href="mailto:mohammadmustufa72@gmail.com" className="inline-flex items-center gap-1.5 hover:text-foreground">
+              <Mail className="size-4" aria-hidden="true" />
+              Email
+            </a>
             <a href="https://www.linkedin.com/in/mohdmustufa" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-foreground">
               <svg className="size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <path d="M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854V1.146zM4.943 13.394V6.169H2.542v7.225h2.401zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.521-1.248-1.342-1.248S2.4 3.225 2.4 3.934c0 .694.521 1.248 1.327 1.248h.016zm4.908 8.212V9.359c0-.216.016-.432.08-.586.174-.432.57-.879 1.236-.879.872 0 1.22.663 1.22 1.634v3.866h2.4V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.192V6.169h-2.4c.03.678 0 7.225 0 7.225h2.393z" />

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -17,14 +18,16 @@ import {
   ShieldCheck,
   ScanSearch,
   Sparkles,
+  Users,
   X,
 } from "lucide-react";
 
-import { BrandLogo, BrandMark } from "@/components/brand-logo";
+import { BrandLogo, KodeistryLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useCurrentTenant } from "@/hooks/use-current-tenant";
 import { logout } from "@/lib/api/auth";
+import { RepositoryAccessGate } from "@/components/layout/repository-access-gate";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -34,6 +37,7 @@ const navItems = [
   { href: "/findings", label: "Findings", icon: Bug },
   { href: "/secret-scanner", label: "Secret Scanner", icon: ScanSearch },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/team", label: "Team Members", icon: Users },
   { href: "/settings/integrations/github", label: "GitHub", icon: GitBranch },
 ] as const;
 
@@ -47,7 +51,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const { user } = useCurrentTenant();
+  const { user, tenants, tenantId, setTenantId, isSwitching, switchError, canManage } = useCurrentTenant();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -67,6 +72,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     try {
       await logout();
     } finally {
+      await queryClient.cancelQueries();
+      queryClient.clear();
       router.replace("/login");
     }
   }
@@ -92,7 +99,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <nav aria-label="Primary navigation" className="flex-1 space-y-1 px-3 py-5">
         {!collapsed || mobile ? <p className="mb-2 px-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/70">Product</p> : null}
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {navItems.filter((item) => canManage || !["/team", "/settings/integrations/github"].includes(item.href)).map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href);
           return (
             <Link
@@ -183,19 +190,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>
               <Menu className="size-5" />
             </Button>
-            <BrandMark className="size-8 lg:hidden" />
+            <KodeistryLogo className="size-8 lg:hidden" />
             <div className="hidden items-center gap-2 text-sm sm:flex">
               <span className="text-muted-foreground">Kodeistry</span>
               <span className="text-muted-foreground/40">/</span>
               <span className="font-medium">{currentLabel}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+            {tenants.length > 1 ? <label className="min-w-0"><span className="sr-only">Active team</span><select aria-label="Active team" value={tenantId ?? ""} disabled={isSwitching} onChange={(event) => setTenantId(Number(event.target.value))} className="h-9 max-w-[40vw] rounded-lg border bg-background px-2 text-sm sm:max-w-64">{tenants.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label> : null}
+            {switchError ? <span role="alert">Could not switch team. Try again.</span> : null}
             <Sparkles className="size-3.5 text-violet-600 dark:text-violet-400" />
             AI code review
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1480px] p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="mx-auto w-full max-w-[1480px] p-4 sm:p-6 lg:p-8">{isSwitching ? <p role="status">Switching team...</p> : <RepositoryAccessGate>{children}</RepositoryAccessGate>}</main>
       </div>
     </div>
   );

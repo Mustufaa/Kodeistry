@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/layout/theme-provider";
+import { ThemeFavicon, ThemeProvider } from "@/components/layout/theme-provider";
 import { Providers } from "@/app/providers";
+import { KodyAssistant } from "@/components/kody/kody-assistant";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,9 +20,11 @@ export const metadata: Metadata = {
   description:
     "AI-powered code reviews for GitHub pull requests, security findings, and code-quality insights.",
   icons: {
-    icon: "/kodeistry-icon.png",
-    shortcut: "/kodeistry-icon.png",
-    apple: "/kodeistry-icon.png",
+    icon: [
+      { url: "/brand/kodeistry-black.png", media: "(prefers-color-scheme: light)" },
+      { url: "/brand/kodeistry-white.png", media: "(prefers-color-scheme: dark)" },
+    ],
+    apple: "/brand/kodeistry-black.png",
   },
 };
 
@@ -43,7 +46,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Providers>{children}</Providers>
+          <ThemeFavicon />
+          <Providers>{children}<KodyAssistant /></Providers>
         </ThemeProvider>
       </body>
     </html>

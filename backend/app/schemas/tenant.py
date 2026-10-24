@@ -12,6 +12,7 @@ class TenantResponse(BaseModel):
     name: str
     slug: str
     workspace_type: Literal["PERSONAL", "ORGANIZATION"]
+    role: Literal["OWNER", "ADMIN", "MEMBER"] | None = None
 
     model_config = {
         "from_attributes": True,

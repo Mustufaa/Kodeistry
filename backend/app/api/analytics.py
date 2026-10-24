@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
+from app.core.repository_access import require_repository
 from app.api.fix_workflow import TriageUpdate, authorized, update_triage
 from app.db.session import get_db
 from app.models.repository import Repository
@@ -235,6 +236,8 @@ async def get_analytics(
     db: AsyncSession = Depends(get_db),
 ):
     await require_membership(tenant_id, current_user.id, db)
+    if repository_id is not None:
+        await require_repository(db, tenant_id, current_user.id, repository_id)
     start, end, normalized_timeframe = resolve_range(timeframe, start_date, end_date)
     rows, review_rows = await load_period(db, tenant_id, start, end, repository_id, severity, category, finding_status)
     duration = end - start
@@ -275,6 +278,8 @@ async def list_findings(
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
     await require_membership(tenant_id, current_user.id, db)
+    if repository_id is not None:
+        await require_repository(db, tenant_id, current_user.id, repository_id)
     start, end, _ = resolve_range(timeframe, start_date, end_date)
     rows, _ = await load_period(db, tenant_id, start, end, repository_id, severity, category, finding_status)
     return [serialize_finding(row) for row in rows]
@@ -305,6 +310,8 @@ async def export_findings(
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
     await require_membership(tenant_id, current_user.id, db)
+    if repository_id is not None:
+        await require_repository(db, tenant_id, current_user.id, repository_id)
     start, end, _ = resolve_range(timeframe, start_date, end_date)
     rows, _ = await load_period(db, tenant_id, start, end, repository_id, severity, category, finding_status)
     output = io.StringIO(newline="")

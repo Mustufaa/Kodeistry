@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { BrandMark } from "@/components/brand-logo";
+import { KodeistryLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { forgotPassword } from "@/lib/api/auth";
@@ -35,7 +35,7 @@ export default function ForgotPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-xl border bg-card p-8 shadow-sm">
         <div className="mb-8 text-center">
-          <BrandMark className="mx-auto mb-4 size-12" />
+          <KodeistryLogo className="mx-auto mb-4 size-12" />
           <h1 className="text-2xl font-semibold">Forgot password</h1>
         </div>
 

@@ -14,10 +14,10 @@ export function useCurrentTenant() {
   const switchWorkspace = useMutation({
     mutationFn: selectOnboardingWorkspace,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["current-user"] });
-      await queryClient.invalidateQueries({ queryKey: ["onboarding-status"] });
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      await queryClient.invalidateQueries({ queryKey: ["repositories"] });
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      // A fresh document also clears component state and in-flight data from the previous team.
+      window.location.assign("/dashboard");
     },
   });
 
@@ -36,5 +36,8 @@ export function useCurrentTenant() {
     tenantId: currentTenant?.id,
     setTenantId: (tenantId: number) => switchWorkspace.mutate(tenantId),
     isSwitching: switchWorkspace.isPending,
+    switchError: switchWorkspace.error,
+    canManage: currentTenant?.role === "OWNER" || currentTenant?.role === "ADMIN",
+    isOwner: currentTenant?.role === "OWNER",
   };
 }

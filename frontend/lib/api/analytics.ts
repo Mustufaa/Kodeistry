@@ -29,7 +29,11 @@ export function updateFindingStatus(tenantId: number, findingId: number, status:
 
 export async function downloadFindingsCsv(tenantId: number, filters: AnalyticsFilters, filename?: string) {
   const response = await fetch(apiUrl(`/tenants/${tenantId}/findings/export?${analyticsQuery(filters)}`), { credentials: "include", headers: apiHeaders() });
-  if (!response.ok) throw new Error("Unable to export findings.");
+  if (!response.ok) {
+    if ([401, 403].includes(response.status)) window.dispatchEvent(new Event("kodeistry-access-lost"));
+    if (response.status === 404) window.dispatchEvent(new Event("kodeistry-permissions-refresh"));
+    throw new Error("Unable to export findings.");
+  }
   const blob = await response.blob();
   const disposition = response.headers.get("Content-Disposition") ?? "";
   const serverName = disposition.match(/filename="?([^";]+)"?/i)?.[1];

@@ -10,6 +10,8 @@ from app.db.base import Base
 import app.models.user
 import app.models.tenant
 import app.models.tenant_member
+import app.models.repository_member
+import app.models.team_invitation
 import app.models.github_installation
 import app.models.repository
 from app.models.review_run import ReviewRun

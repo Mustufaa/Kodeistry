@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
-import { BrandMark } from "@/components/brand-logo";
+import { KodeistryLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resetPassword } from "@/lib/api/auth";
@@ -54,7 +54,7 @@ function ResetPasswordForm() {
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-xl border bg-card p-8 shadow-sm">
         <div className="mb-8 text-center">
-          <BrandMark className="mx-auto mb-4 size-12" />
+          <KodeistryLogo className="mx-auto mb-4 size-12" />
           <h1 className="text-2xl font-semibold">Reset password</h1>
         </div>
 
@@ -91,7 +91,7 @@ function PasswordResetFormSkeleton() {
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-xl border bg-card p-8 shadow-sm">
         <div className="mb-8 text-center">
-          <BrandMark className="mx-auto mb-4 size-12" />
+          <KodeistryLogo className="mx-auto mb-4 size-12" />
           <h1 className="text-2xl font-semibold">Reset password</h1>
         </div>
         <div className="space-y-5 animate-pulse">

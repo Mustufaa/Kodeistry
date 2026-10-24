@@ -1,0 +1,23 @@
+.track {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  --bug-outline: #18181b;
+  --bug-shell: #111114;
+  --bug-head: #3d3f47;
+  --bug-metal: #a3a6b0;
+  --bug-light: #f9fafb;
+}
+:global(.dark) .track {
+  --bug-outline: #f4f4f5;
+  --bug-shell: #141418;
+  --bug-head: #666976;
+  --bug-metal: #c5c8d1;
+  --bug-light: #ffffff;
+}
+.track .sectionMascot { width: 32px; height: 32px; }
+@media (max-width: 640px) {
+  .track .sectionMascot { width: 24px; height: 24px; }
+}

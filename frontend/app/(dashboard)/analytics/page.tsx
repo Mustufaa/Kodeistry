@@ -30,7 +30,7 @@ function Comparison({ metric, label, inverse = false }: { metric?: ComparisonMet
 }
 
 export default function AnalyticsPage() {
-  const { tenantId } = useCurrentTenant();
+  const { tenantId, canManage } = useCurrentTenant();
   const [filters, setFilters] = useState<AnalyticsFilters>({ timeframe: "30d" });
   const query = useQuery({ queryKey: ["analytics", tenantId, filters], queryFn: () => getAnalytics(tenantId!, filters), enabled: !!tenantId && (filters.timeframe !== "custom" || !!filters.start_date && !!filters.end_date) });
   const repositoriesQuery = useQuery({ queryKey: ["repositories", tenantId], queryFn: () => getRepositories(tenantId!), enabled: !!tenantId });
@@ -39,10 +39,17 @@ export default function AnalyticsPage() {
     ["Reviews", data?.summary.reviews, null], ["Findings", data?.summary.findings, data?.comparison.findings], ["Critical", data?.summary.critical, data?.comparison.critical],
     ["Resolved", data?.summary.resolved, data?.comparison.resolved], ["Resolution Rate", data?.summary.resolution_rate == null ? "—" : `${data.summary.resolution_rate}%`, null],
   ] as const;
-  function exportReport() { if (!data) return; downloadReportCsv(data, `kodeistry-analytics-${data.end_date}.csv`); toast.success("Report downloaded"); }
+  async function exportReport() {
+    if (!tenantId) return;
+    try {
+      const fresh = await getAnalytics(tenantId, filters);
+      downloadReportCsv(fresh, "kodeistry-report-" + fresh.end_date + ".csv");
+      toast.success("Report downloaded");
+    } catch { toast.error("Unable to export this report. Check your access and try again."); }
+  }
 
   return <div className="space-y-6">
-    <PageHeader title="Analytics" description="Understand review quality and code issues over time." actions={<><Button asChild variant="outline"><Link href="/analytics/reports"><FileText className="size-4" />Reports</Link></Button><Button onClick={exportReport} disabled={!data}><Download className="size-4" />Export Report</Button></>} />
+    <PageHeader title="Analytics" description={canManage ? "Understand review quality and code issues over time." : "Analytics for your assigned repositories only."} actions={<><Button asChild variant="outline"><Link href="/analytics/reports"><FileText className="size-4" />Reports</Link></Button><Button onClick={exportReport} disabled={!data}><Download className="size-4" />Export Report</Button></>} />
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><TimeframePicker value={filters.timeframe} onChange={(timeframe) => setFilters({ ...filters, timeframe })} /><ReportFilters filters={filters} repositories={repositoriesQuery.data ?? []} onChange={setFilters} /></div>
     {query.isError ? <div role="alert" className="rounded-lg border border-red-500/25 bg-red-500/[0.06] p-4 text-sm">Couldn&apos;t load analytics for these filters. <button className="ml-2 font-medium text-primary" onClick={() => query.refetch()}>Try again</button></div> : null}
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{metrics.map(([label, value, comparison]) => <Card key={label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{label}</p>{query.isLoading ? <div className="mt-3 h-8 w-16 animate-pulse rounded bg-muted" /> : <p className="mt-2 text-2xl font-semibold tracking-tight">{value ?? 0}</p>}<div className="mt-2"><Comparison metric={comparison} label={data?.comparison.label ?? "previous period"} inverse={label !== "Resolved"} /></div></CardContent></Card>)}</section>

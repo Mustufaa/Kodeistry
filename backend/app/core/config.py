@@ -135,15 +135,15 @@ class Settings:
     # ============================================================
 
     MAIL_USERNAME: str = config(
-        "MAIL_USERNAME"
+        "MAIL_USERNAME", default=""
     )
 
     MAIL_PASSWORD: str = config(
-        "MAIL_PASSWORD"
+        "MAIL_PASSWORD", default=""
     )
 
     MAIL_FROM: str = config(
-        "MAIL_FROM"
+        "MAIL_FROM", default="noreply@example.com"
     )
 
     MAIL_PORT: int = config(
@@ -247,6 +247,14 @@ class Settings:
         "GEMINI_MODEL",
         default="gemini-3-flash-preview",
     )
+
+    # Public Kody assistant. Limits apply independently to each API process.
+    KODY_MODEL: str = config("KODY_MODEL", default="gemini-3-flash-preview")
+    KODY_TIMEOUT_SECONDS: int = max(5, min(config("KODY_TIMEOUT_SECONDS", cast=int, default=20), 60))
+    KODY_MAX_OUTPUT_TOKENS: int = max(128, min(config("KODY_MAX_OUTPUT_TOKENS", cast=int, default=512), 1024))
+    KODY_MAX_CONCURRENT: int = max(1, min(config("KODY_MAX_CONCURRENT", cast=int, default=4), 16))
+    KODY_REQUESTS_PER_MINUTE: int = max(1, min(config("KODY_REQUESTS_PER_MINUTE", cast=int, default=12), 60))
+    KODY_GLOBAL_REQUESTS_PER_MINUTE: int = max(1, min(config("KODY_GLOBAL_REQUESTS_PER_MINUTE", cast=int, default=60), 600))
 
 
     # ============================================================

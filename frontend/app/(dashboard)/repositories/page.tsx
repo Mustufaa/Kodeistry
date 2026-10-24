@@ -16,7 +16,7 @@ import { syncGithubInstallation } from "@/lib/api/github";
 import { getRepositories } from "@/lib/api/repositories";
 
 export default function RepositoriesPage() {
-  const { tenantId } = useCurrentTenant();
+  const { tenantId, canManage } = useCurrentTenant();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
@@ -41,14 +41,14 @@ export default function RepositoriesPage() {
       <PageHeader
         eyebrow="Source control"
         title="Repositories"
-        description="Repositories available through your Kodeistry GitHub App installation."
-        actions={<Button variant="outline" onClick={() => sync.mutate()} disabled={!tenantId || sync.isPending}><RefreshCw className={`size-4 ${sync.isPending ? "animate-spin" : ""}`} />{sync.isPending ? "Syncing" : "Sync repositories"}</Button>}
+        description={canManage ? "Repositories available through your Kodeistry GitHub App installation." : "Repositories assigned to you. Your access is read-only."}
+        actions={canManage ? <Button variant="outline" onClick={() => sync.mutate()} disabled={!tenantId || sync.isPending}><RefreshCw className={`size-4 ${sync.isPending ? "animate-spin" : ""}`} />{sync.isPending ? "Syncing" : "Sync repositories"}</Button> : undefined}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search repositories?" value={search} onChange={(event) => setSearch(event.target.value)} />
+          <Input className="pl-9" placeholder="Search repositories..." value={search} onChange={(event) => setSearch(event.target.value)} />
         </div>
         <p className="text-xs text-muted-foreground">{filtered.length} {filtered.length === 1 ? "repository" : "repositories"}</p>
       </div>
@@ -61,7 +61,7 @@ export default function RepositoriesPage() {
       <Card className="overflow-hidden">
         <CardContent className="p-0">
           {repositories.isLoading ? <div className="p-5"><TableSkeleton /></div> : filtered.length === 0 ? (
-            <div className="p-5"><EmptyState icon={FolderGit2} title={search ? "No matching repositories" : "No repositories connected"} description={search ? "Try a different repository name, branch, or language." : "Choose repositories in your GitHub App settings, then synchronize again."} action={!search ? <Button asChild size="sm"><Link href="/settings/integrations/github">Open GitHub connection</Link></Button> : undefined} /></div>
+            <div className="p-5"><EmptyState icon={FolderGit2} title={search ? "No matching repositories" : "No repositories connected"} description={search ? "Try a different repository name, branch, or language." : "Choose repositories in your GitHub App settings, then synchronize again."} action={!search && canManage ? <Button asChild size="sm"><Link href="/settings/integrations/github">Open GitHub connection</Link></Button> : undefined} /></div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-sm">

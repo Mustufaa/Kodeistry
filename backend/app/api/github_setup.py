@@ -18,7 +18,7 @@ from app.api.github_installation import (
 )
 from app.core.auth import get_current_user
 from app.core.config import settings
-from app.crud.tenant import create_personal_workspace
+from app.api.onboarding import _workspace_for_user
 from app.db.session import get_db
 from app.github.auth import get_github_app_installations
 from app.models.github_installation import GitHubInstallation
@@ -49,7 +49,7 @@ async def start_github_app_installation(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    workspace = await create_personal_workspace(db, current_user)
+    workspace = await _workspace_for_user(db, current_user)
     current_user.onboarding_tenant_id = workspace.id
     await require_owner(db, workspace.id, current_user)
     await db.commit()

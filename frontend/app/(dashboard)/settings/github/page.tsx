@@ -13,7 +13,7 @@ import { disconnectGithubInstallation, getGithubInstallations, getGithubTenantIn
 import { formatDate } from "@/lib/format";
 
 export default function GithubSettingsPage() {
-  const { tenantId } = useCurrentTenant();
+  const { tenantId, canManage, isOwner } = useCurrentTenant();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
   const installations = useQuery({ queryKey: ["github-installations", tenantId], queryFn: () => getGithubInstallations(tenantId!), enabled: !!tenantId });
@@ -35,14 +35,14 @@ export default function GithubSettingsPage() {
               <div className="rounded-xl border bg-background p-4"><dt className="text-xs text-muted-foreground">Last synchronized</dt><dd className="mt-1.5 text-xs font-medium">{connected.last_synced_at ? formatDate(connected.last_synced_at) : "Not yet"}</dd></div>
             </dl>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-              {connected.management_url ? <Button asChild variant="outline"><a href={connected.management_url} target="_blank" rel="noreferrer">Manage on GitHub<ExternalLink className="size-4" /></a></Button> : null}
-              <Button variant="outline" onClick={() => sync.mutate()} disabled={sync.isPending}><RefreshCw className={`size-4 ${sync.isPending ? "animate-spin" : ""}`} />{sync.isPending ? "Syncing" : "Sync repositories"}</Button>
-              <Button variant="ghost" className="text-muted-foreground sm:ml-auto" onClick={() => { if (window.confirm(`Disconnect @${connected.account_login} from Kodeistry?`)) disconnect.mutate(connected.installation_id); }} disabled={disconnect.isPending}><Unplug className="size-4" />Disconnect</Button>
+              {isOwner && connected.management_url ? <Button asChild variant="outline"><a href={connected.management_url} target="_blank" rel="noreferrer">Manage on GitHub<ExternalLink className="size-4" /></a></Button> : null}
+              {canManage ? <Button variant="outline" onClick={() => sync.mutate()} disabled={sync.isPending}><RefreshCw className={`size-4 ${sync.isPending ? "animate-spin" : ""}`} />{sync.isPending ? "Syncing" : "Sync repositories"}</Button> : null}
+              {isOwner ? <Button variant="ghost" className="text-muted-foreground sm:ml-auto" onClick={() => { if (window.confirm(`Disconnect @${connected.account_login} from Kodeistry?`)) disconnect.mutate(connected.installation_id); }} disabled={disconnect.isPending}><Unplug className="size-4" />Disconnect</Button> : null}
             </div>
           </CardContent>
         </Card>
       ) : (
-        <Card className="subtle-grid"><CardContent className="flex min-h-72 flex-col items-center justify-center p-8 text-center"><div className="grid size-12 place-items-center rounded-xl border bg-card"><GitHubMark className="size-6" /></div><h2 className="mt-5 text-base font-semibold">Connect your repositories</h2><p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">Install the Kodeistry GitHub App and choose the repositories you want reviewed.</p><Button className="mt-6" onClick={() => tenantId && window.location.assign(getGithubTenantInstallStartUrl(tenantId))} disabled={!tenantId}><GitHubMark className="size-4" />Install GitHub App</Button></CardContent></Card>
+        <Card className="subtle-grid"><CardContent className="flex min-h-72 flex-col items-center justify-center p-8 text-center"><div className="grid size-12 place-items-center rounded-xl border bg-card"><GitHubMark className="size-6" /></div><h2 className="mt-5 text-base font-semibold">Connect your repositories</h2><p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">Install the Kodeistry GitHub App and choose the repositories you want reviewed.</p>{isOwner ? <Button className="mt-6" onClick={() => tenantId && window.location.assign(getGithubTenantInstallStartUrl(tenantId))} disabled={!tenantId}><GitHubMark className="size-4" />Install GitHub App</Button> : <p className="mt-4 text-sm text-muted-foreground">Ask a team owner to connect GitHub.</p>}</CardContent></Card>
       )}
       {message ? <p role="status" className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground">{message}</p> : null}
     </div>

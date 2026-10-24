@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,14 +25,7 @@ async def create_personal_workspace(
             )
         )
         if membership is None:
-            db.add(
-                TenantMember(
-                    tenant_id=existing.id,
-                    user_id=user.id,
-                    role="OWNER",
-                )
-            )
-            await db.flush()
+            raise HTTPException(403, "Access to this workspace has been removed.")
         return existing
 
     base_slug = f"personal-{user.id}"

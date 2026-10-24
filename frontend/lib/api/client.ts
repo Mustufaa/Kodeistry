@@ -35,7 +35,7 @@ async function csrfToken() {
   return crossOriginCsrfToken;
 }
 
-const PUBLIC_AUTH_PATHS = new Set(["/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password"]);
+const PUBLIC_AUTH_PATHS = new Set(["/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/invitations/preview", "/invitations/register"]);
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const method = (options.method ?? "GET").toUpperCase();
@@ -49,7 +49,13 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   if (!response.ok) {
     let message = `Request failed (${response.status})`;
     try { const data = await response.json(); message = data.detail ?? data.message ?? message; } catch { /* non-JSON response */ }
-    throw new ApiError(message, response.status);
+    if (typeof window !== "undefined" && path.startsWith("/tenants/") && response.status === 404) {
+      window.dispatchEvent(new Event("kodeistry-permissions-refresh"));
+    }
+    if (typeof window !== "undefined" && path.startsWith("/tenants/") && [401, 403].includes(response.status)) {
+      window.dispatchEvent(new Event("kodeistry-access-lost"));
+    }
+    throw new ApiError(typeof message === "string" ? message : "Check the form fields and try again.", response.status);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;

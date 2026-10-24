@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -16,7 +16,7 @@ async def get_user_by_email(
     Retrieve a user by email.
     """
     result = await db.execute(
-        select(User).where(User.email == email)
+        select(User).where(func.lower(func.trim(User.email)) == email.strip().lower())
     )
 
     return result.scalar_one_or_none()
@@ -72,7 +72,7 @@ async def create_user(
 
     db_user = User(
         full_name=user.name,
-        email=user.email,
+        email=user.email.strip().lower(),
         hashed_password=hash_password(user.password),
         is_verified=False,
         verification_token=verification_token,

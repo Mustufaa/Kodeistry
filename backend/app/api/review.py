@@ -172,7 +172,7 @@ async def get_review_history_detail(
 
     findings = findings_result.scalars().all()
     tracked_ids = {finding.tracked_finding_id for finding in findings if finding.tracked_finding_id}
-    tracked_rows = (await db.scalars(select(ReviewFinding).where(ReviewFinding.id.in_(tracked_ids)))).all() if tracked_ids else []
+    tracked_rows = (await db.scalars(select(ReviewFinding).join(ReviewRun, ReviewRun.id == ReviewFinding.review_run_id).where(ReviewFinding.id.in_(tracked_ids), ReviewRun.repository_id == review_run.repository_id, ReviewRun.tenant_id == tenant_id))).all() if tracked_ids else []
     tracked_by_id = {finding.id: finding for finding in tracked_rows}
     repository = await db.scalar(select(Repository).where(Repository.id == review_run.repository_id))
 
@@ -209,7 +209,7 @@ async def get_review_history_detail(
                 status=(tracked_by_id.get(finding.tracked_finding_id) or finding).status,
                 verification_status=(tracked_by_id.get(finding.tracked_finding_id) or finding).verification_status,
                 triage_status=(tracked_by_id.get(finding.tracked_finding_id) or finding).triage_status,
-                tracked_finding_id=finding.tracked_finding_id,
+                tracked_finding_id=finding.tracked_finding_id if finding.tracked_finding_id in tracked_by_id else None,
                 checked_commit_sha=(tracked_by_id.get(finding.tracked_finding_id) or finding).checked_commit_sha,
                 checked_at=(tracked_by_id.get(finding.tracked_finding_id) or finding).checked_at,
                 verification_reason=(tracked_by_id.get(finding.tracked_finding_id) or finding).verification_reason,

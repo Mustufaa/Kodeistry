@@ -18,6 +18,7 @@ class Repository(Base):
     __tablename__ = "repositories"
 
     __table_args__ = (
+        UniqueConstraint("id", "tenant_id", name="uq_repository_id_tenant"),
         UniqueConstraint(
             "tenant_id",
             "github_repository_id",

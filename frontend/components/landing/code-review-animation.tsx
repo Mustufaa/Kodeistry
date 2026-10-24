@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Code2, Pause, Play, ScanLine, ShieldCheck } from "lucide-react";
+import { Check, Code2, ScanLine, ShieldCheck } from "lucide-react";
 
+import { MacWindow } from "./mac-window";
 import styles from "./code-review-animation.module.css";
 
 type Issue = {
@@ -82,13 +83,9 @@ export function CodeReviewAnimation() {
   const sceneRef = useRef<HTMLDivElement>(null);
   const visualRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
-  const pausedRef = useRef(false);
-  const reconcileRef = useRef<(() => void) | null>(null);
   const resetTiltRef = useRef<(() => void) | null>(null);
   // The server and first client render show a completed scan. Reduced motion stays here.
   const [elapsed, setElapsed] = useState(STATIC_FRAME);
-  const [paused, setPaused] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
   const [sceneSize, setSceneSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -105,13 +102,12 @@ export function CodeReviewAnimation() {
     const reconcile = () => {
       if (interval) clearInterval(interval);
       interval = undefined;
-      setReducedMotion(motion.matches);
       if (motion.matches) {
         setElapsed(STATIC_FRAME);
         resetTiltRef.current?.();
         return;
       }
-      if (!inView || !pageVisible || pausedRef.current) {
+      if (!inView || !pageVisible) {
         resetTiltRef.current?.();
         return;
       }
@@ -121,7 +117,6 @@ export function CodeReviewAnimation() {
       }
       interval = setInterval(() => setElapsed((value) => (value + 50) % LOOP_END), 50);
     };
-    reconcileRef.current = reconcile;
 
     const intersection = new IntersectionObserver(([entry]) => {
       inView = entry.isIntersecting;
@@ -147,7 +142,6 @@ export function CodeReviewAnimation() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       motion.removeEventListener("change", reconcile);
       if (interval) clearInterval(interval);
-      reconcileRef.current = null;
     };
   }, []);
 
@@ -171,7 +165,7 @@ export function CodeReviewAnimation() {
     resetTiltRef.current = reset;
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!finePointer.matches || motion.matches || pausedRef.current) return;
+      if (!finePointer.matches || motion.matches) return;
       pointer = { x: event.clientX, y: event.clientY };
       if (frame) return;
       frame = requestAnimationFrame(() => {
@@ -194,113 +188,84 @@ export function CodeReviewAnimation() {
     };
   }, []);
 
-  const togglePaused = () => {
-    if (reducedMotion) return;
-    const next = !pausedRef.current;
-    pausedRef.current = next;
-    setPaused(next);
-    if (next) resetTiltRef.current?.();
-    reconcileRef.current?.();
-  };
-
   const scanning = elapsed >= SCAN_START && elapsed <= SCAN_START + SCAN_DURATION;
   const complete = elapsed >= COMPLETE_AT;
   const beamX = (BEAM_START + (BEAM_END - BEAM_START) * clamp((elapsed - SCAN_START) / SCAN_DURATION)) * sceneSize.width / 100;
 
   return (
     <div className={styles.scene} ref={sceneRef}>
-      <div className={styles.sceneTop}>
-        <span className={styles.exampleLabel}><span className={styles.labelPixel} aria-hidden="true" /> Example scan</span>
-        <button
-          type="button"
-          className={styles.pauseButton}
-          onClick={togglePaused}
-          disabled={reducedMotion}
-          aria-label={paused ? "Resume example scan" : "Pause example scan"}
-          aria-pressed={paused}
-          title={reducedMotion ? "Animation disabled by reduced motion setting" : paused ? "Resume example scan" : "Pause example scan"}
-        >
-          {paused ? <Play size={13} aria-hidden="true" /> : <Pause size={13} aria-hidden="true" />}
-          <span>{paused ? "Resume" : "Pause"}</span>
-        </button>
-      </div>
+      <MacWindow title="pull-request / review.ts">
+        <div ref={visualRef} className={styles.visual} aria-hidden="true">
+          <span className={styles.sceneGrid} />
+          <span className={styles.floatTile + " " + styles.floatOne} style={{ transform: "translate3d(0," + Math.sin(elapsed / 1100) * 5 + "px,0)" }}>{"{ }"}</span>
+          <span className={styles.floatTile + " " + styles.floatTwo} style={{ transform: "translate3d(0," + Math.sin(elapsed / 1250 + 1) * 5 + "px,0)" }}><Code2 size={16} /></span>
 
-      <div ref={visualRef} className={styles.visual} aria-hidden="true">
-        <span className={styles.sceneGrid} />
-        <span className={styles.floatTile + " " + styles.floatOne} style={{ transform: "translate3d(0," + Math.sin(elapsed / 1100) * 5 + "px,0)" }}>{"{ }"}</span>
-        <span className={styles.floatTile + " " + styles.floatTwo} style={{ transform: "translate3d(0," + Math.sin(elapsed / 1250 + 1) * 5 + "px,0)" }}><Code2 size={16} /></span>
-
-        <div ref={editorRef} className={styles.editor}>
-          <div className={styles.editorBar}>
-            <span className={styles.windowSquares}><i /><i /><i /></span>
-            <span className={styles.editorTitle}><Code2 size={13} /> pull-request / review.ts</span>
-            <span className={styles.editorTag}>AI REVIEW</span>
-          </div>
-          <div className={styles.codeList}>
-            {issues.map((issue, index) => {
-              const detected = elapsed >= detectedAt(issue.x);
-              const resolved = elapsed >= detectedAt(issue.x) + RESOLVE_DELAY;
-              return (
-                <div key={issue.file} className={[styles.codeBlock, detected && !resolved ? styles.blockDetected : "", resolved ? styles.blockResolved : ""].join(" ")}>
-                  <div className={styles.blockHeader}>
-                    <span className={styles.lineNumber}>{String(index * 4 + 8).padStart(2, "0")}</span>
-                    <span className={styles.fileName}>{issue.file}</span>
-                    <span className={styles.blockStatus}>{resolved ? <Check size={12} /> : detected ? <ScanLine size={12} /> : <span className={styles.issueDot} />}{resolved ? "Resolved" : detected ? "Detected" : "Issue"}</span>
+          <div ref={editorRef} className={styles.editor}>
+            <div className={styles.codeList}>
+              {issues.map((issue, index) => {
+                const detected = elapsed >= detectedAt(issue.x);
+                const resolved = elapsed >= detectedAt(issue.x) + RESOLVE_DELAY;
+                return (
+                  <div key={issue.file} className={[styles.codeBlock, detected && !resolved ? styles.blockDetected : "", resolved ? styles.blockResolved : ""].join(" ")}>
+                    <div className={styles.blockHeader}>
+                      <span className={styles.lineNumber}>{String(index * 4 + 8).padStart(2, "0")}</span>
+                      <span className={styles.fileName}>{issue.file}</span>
+                      <span className={styles.blockStatus}>{resolved ? <Check size={12} /> : detected ? <ScanLine size={12} /> : <span className={styles.issueDot} />}{resolved ? "Resolved" : detected ? "Detected" : "Issue"}</span>
+                    </div>
+                    <code className={styles.codeLine}>{resolved ? issue.after : issue.before}</code>
                   </div>
-                  <code className={styles.codeLine}>{resolved ? issue.after : issue.before}</code>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-          <div className={styles.editorFoot}><span><span className={styles.footSquare} /> kodeistry.ai</span><span>3 checks</span></div>
+
+          {sceneSize.width > 0 && scanning && (
+            <span className={styles.scanBeam} style={{ transform: "translate3d(" + beamX + "px,0,0) translateX(-50%)" }} />
+          )}
+
+          {sceneSize.width > 0 && issues.map((issue, index) => {
+            const foundAt = detectedAt(issue.x);
+            const resolvedAt = foundAt + RESOLVE_DELAY;
+            const crawl = clamp(elapsed / foundAt);
+            const x = (issue.startX + (issue.x - issue.startX) * crawl) * sceneSize.width / 100;
+            const y = (issue.startY + (issue.y - issue.startY) * crawl) * sceneSize.height / 100
+              + (elapsed < foundAt ? Math.sin(elapsed / 140 + index) * 1.5 : 0);
+            const detected = elapsed >= foundAt && elapsed < resolvedAt;
+            const visible = elapsed < resolvedAt;
+            const burst = elapsed >= resolvedAt && elapsed < resolvedAt + 550;
+            const particleProgress = clamp((elapsed - resolvedAt) / 550);
+
+            return (
+              <div key={issue.file} className={[styles.bugLayer, styles["bug" + index]].join(" ")}>
+                {visible && (
+                  <span
+                    className={[styles.bug, styles[issue.color], detected ? styles.detectedBug : ""].join(" ")}
+                    style={{ transform: "translate3d(" + x + "px," + y + "px,0) translate(-50%,-50%)" }}
+                  >
+                    <PixelBug />
+                    {detected && <span className={styles.bugLabel}>{issue.label}</span>}
+                  </span>
+                )}
+                {burst && particleRays.map(([dx, dy], particle) => (
+                  <span
+                    key={particle}
+                    className={[styles.particle, styles[issue.color]].join(" ")}
+                    style={{
+                      opacity: 1 - particleProgress,
+                      transform: "translate3d(" + (x + dx * particleProgress) + "px," + (y + dy * particleProgress) + "px,0)",
+                    }}
+                  />
+                ))}
+              </div>
+            );
+          })}
         </div>
 
-        {sceneSize.width > 0 && scanning && (
-          <span className={styles.scanBeam} style={{ transform: "translate3d(" + beamX + "px,0,0) translateX(-50%)" }} />
-        )}
-
-        {sceneSize.width > 0 && issues.map((issue, index) => {
-          const foundAt = detectedAt(issue.x);
-          const resolvedAt = foundAt + RESOLVE_DELAY;
-          const crawl = clamp(elapsed / foundAt);
-          const x = (issue.startX + (issue.x - issue.startX) * crawl) * sceneSize.width / 100;
-          const y = (issue.startY + (issue.y - issue.startY) * crawl) * sceneSize.height / 100
-            + (elapsed < foundAt ? Math.sin(elapsed / 140 + index) * 1.5 : 0);
-          const detected = elapsed >= foundAt && elapsed < resolvedAt;
-          const visible = elapsed < resolvedAt;
-          const burst = elapsed >= resolvedAt && elapsed < resolvedAt + 550;
-          const particleProgress = clamp((elapsed - resolvedAt) / 550);
-
-          return (
-            <div key={issue.file} className={[styles.bugLayer, styles["bug" + index]].join(" ")}>
-              {visible && (
-                <span
-                  className={[styles.bug, styles[issue.color], detected ? styles.detectedBug : ""].join(" ")}
-                  style={{ transform: "translate3d(" + x + "px," + y + "px,0) translate(-50%,-50%)" }}
-                >
-                  <PixelBug />
-                  {detected && <span className={styles.bugLabel}>{issue.label}</span>}
-                </span>
-              )}
-              {burst && particleRays.map(([dx, dy], particle) => (
-                <span
-                  key={particle}
-                  className={[styles.particle, styles[issue.color]].join(" ")}
-                  style={{
-                    opacity: 1 - particleProgress,
-                    transform: "translate3d(" + (x + dx * particleProgress) + "px," + (y + dy * particleProgress) + "px,0)",
-                  }}
-                />
-              ))}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className={styles.statusBar} aria-live="off">
-        <span className={styles.statusText}><ShieldCheck size={15} aria-hidden="true" />{complete ? "Scan complete · 3 bugs resolved" : paused ? "Scan paused" : scanning ? "AI scanner in progress" : "Tracking code issues"}</span>
-        <span className={styles.statusCount}>{issues.filter((issue) => elapsed >= detectedAt(issue.x) + RESOLVE_DELAY).length} / 3 resolved</span>
-      </div>
+        <div className={styles.statusBar} aria-live="off">
+          <span className={styles.statusText}><ShieldCheck size={15} aria-hidden="true" />{complete ? "Scan complete · 3 bugs resolved" : scanning ? "AI scanner in progress" : "Tracking code issues"}</span>
+          <span className={styles.statusCount}>{issues.filter((issue) => elapsed >= detectedAt(issue.x) + RESOLVE_DELAY).length} / 3 resolved</span>
+        </div>
+      </MacWindow>
     </div>
   );
 }

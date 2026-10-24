@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 
-import { BrandMark } from "@/components/brand-logo";
+import { KodeistryLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { register } from "@/lib/api/auth";
@@ -60,7 +60,7 @@ export default function RegisterPage() {
           <Link href="/" aria-label="Back to landing"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div className="mb-8 text-center">
-          <BrandMark className="mx-auto mb-4 size-12" />
+          <KodeistryLogo className="mx-auto mb-4 size-12" />
           <h1 className="text-2xl font-semibold">Create account</h1>
         </div>
 

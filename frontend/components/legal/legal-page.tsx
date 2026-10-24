@@ -65,7 +65,11 @@ export function LegalPage({ title, description, lastUpdated, sections }: LegalPa
       </main>
       <footer className="border-t">
         <div className="mx-auto flex max-w-6xl flex-col justify-between gap-4 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:px-6 lg:px-8">
-          <span>&copy; 2026 Kodeistry</span>
+          <span className="flex items-center gap-3">
+            <BrandLogo href="/" ariaLabel="Kodeistry home" />
+            <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+            <span>&copy; 2026</span>
+          </span>
           <div className="flex gap-6">
             <Link href="/privacy" className="hover:text-foreground">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-foreground">Terms &amp; Conditions</Link>

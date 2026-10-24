@@ -1,5 +1,6 @@
 "use client";
 
+import { useCurrentTenant } from "@/hooks/use-current-tenant";
 import type { AnalyticsFilters, Timeframe } from "@/types/analytics";
 import type { RepositoryItem } from "@/types/repository";
 import { cn } from "@/lib/utils";
@@ -16,10 +17,11 @@ export function TimeframePicker({ value, onChange }: { value: Timeframe; onChang
 }
 
 export function ReportFilters({ filters, repositories, onChange, allowCustom = true }: { filters: AnalyticsFilters; repositories: RepositoryItem[]; onChange: (filters: AnalyticsFilters) => void; allowCustom?: boolean }) {
+  const { canManage } = useCurrentTenant();
   const selectClass = "h-9 rounded-md border border-input bg-card px-2.5 text-xs outline-none focus:border-ring";
   return <div className="flex flex-wrap items-end gap-2">
     <select aria-label="Repository" value={filters.repository_id ?? ""} onChange={(event) => onChange({ ...filters, repository_id: event.target.value ? Number(event.target.value) : undefined })} className={selectClass}>
-      <option value="">All repositories</option>{repositories.map((repo) => <option key={repo.id} value={repo.id}>{repo.full_name}</option>)}
+      <option value="">{canManage ? "All repositories" : "All assigned repositories"}</option>{repositories.map((repo) => <option key={repo.id} value={repo.id}>{repo.full_name}</option>)}
     </select>
     <select aria-label="Severity" value={filters.severity ?? ""} onChange={(event) => onChange({ ...filters, severity: event.target.value || undefined })} className={selectClass}>
       <option value="">All severities</option>{["critical", "high", "medium", "low", "info"].map((value) => <option key={value} value={value}>{value[0].toUpperCase() + value.slice(1)}</option>)}

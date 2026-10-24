@@ -30,6 +30,7 @@
 }
 
 .insect {
+  display: block;
   width: 100%;
   height: 100%;
   transform-origin: center;
@@ -68,10 +69,10 @@
   animation-play-state: paused;
 }
 
-.legOdd { animation: strideA .46s ease-in-out infinite; }
-.legEven { animation: strideB .46s ease-in-out infinite; }
-.antennaA { animation: antennaA 3.6s ease-in-out infinite; }
-.antennaB { animation: antennaB 4.2s ease-in-out infinite; }
+.legOdd { animation: strideA .46s ease-in-out infinite paused; }
+.legEven { animation: strideB .46s ease-in-out infinite paused; }
+.antennaA { animation: antennaA 3.6s ease-in-out infinite paused; }
+.antennaB { animation: antennaB 4.2s ease-in-out infinite paused; }
 
 .mascot[data-walking="true"] .legOdd,
 .mascot[data-walking="true"] .legEven,
@@ -85,11 +86,13 @@
   animation-play-state: paused;
 }
 .mascot[data-phase="detected"] .insect {
+  display: block;
   filter: drop-shadow(0 0 3px var(--bug-light)) drop-shadow(0 0 7px var(--bug-outline));
 }
 
 .mascot[data-phase="particles"] .insect,
 .mascot[data-phase="respawn"] .insect {
+  display: block;
   opacity: 0;
 }
 
@@ -151,24 +154,6 @@
   animation: scatter .7s steps(6, end) both;
 }
 
-.toggle {
-  position: fixed;
-  z-index: 50;
-  right: 16px;
-  bottom: 16px;
-  min-height: 32px;
-  padding: 5px 9px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--muted-foreground);
-  box-shadow: 2px 2px 0 color-mix(in srgb, var(--foreground) 18%, transparent);
-  font: 600 11px/1.2 var(--font-voxel), ui-monospace, monospace;
-  cursor: pointer;
-}
-
-.toggle:hover { color: var(--foreground); }
-.toggle:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
-
 @keyframes strideA {
   0%, 100% { transform: rotate(-11deg); }
   50% { transform: rotate(13deg); }
@@ -203,17 +188,16 @@
 
 @media (max-width: 640px) {
   .mascot { width: 44px; height: 44px; }
-  .toggle { right: 10px; bottom: 10px; }
   .scanBeam { height: 60px; top: -8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .legOdd,
-  .legEven,
-  .antennaA,
-  .antennaB,
-  .scanBeam,
-  .particles span {
+  .mascot:not([data-motion="on"]) .legOdd,
+  .mascot:not([data-motion="on"]) .legEven,
+  .mascot:not([data-motion="on"]) .antennaA,
+  .mascot:not([data-motion="on"]) .antennaB,
+  .mascot:not([data-motion="on"]) .scanBeam,
+  .mascot:not([data-motion="on"]) .particles span {
     animation: none !important;
   }
 }

@@ -1,0 +1,107 @@
+.root { position: fixed; inset: 0; z-index: 80; pointer-events: none; }
+.launcher {
+  position: fixed; right: 20px; bottom: max(16px, env(safe-area-inset-bottom));
+  display: grid; width: 70px; height: 76px; place-items: center; padding: 0;
+  border: 0; background: transparent; cursor: pointer; pointer-events: auto;
+  filter: drop-shadow(0 8px 9px rgb(0 0 0 / .2));
+  transition: filter .2s ease;
+  animation: launcherRetreat 10s ease-in-out infinite;
+}
+.launcher:hover { transform: translateY(-3px); filter: drop-shadow(0 12px 12px rgb(0 0 0 / .24)); }
+.root:has(.panel[data-open="true"]) .launcher { animation: none; }
+.launcher:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; border-radius: 18px; }
+.robot { display: block; width: 64px; height: 72px; overflow: visible; }
+.shadow { fill: rgb(0 0 0 / .2); }
+.robotFloat { transform-origin: center; animation: greetJump .9s .12s both, idleFloat 5s 1.5s ease-in-out infinite; }
+.head, .body, .hand { fill: #f4f4f5; stroke: #4b4b52; stroke-width: 1.4; }
+.headShine, .bodyShine { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; opacity: .9; }
+.face { fill: #111116; stroke: #63636d; stroke-width: 1.5; }
+.eye, .smile { fill: none; stroke: #fff; stroke-width: 4.2; stroke-linecap: round; }
+.eye { animation: blink 8s 2.8s infinite; transform-origin: 42px 34px; }
+.smile { stroke-width: 3.5; }
+.ear, .neck, .rightArm rect, .rightArm circle, .waveArm circle, .waveArm rect, .leg {
+  fill: #c9c9ce; stroke: #4b4b52; stroke-width: 1.5;
+}
+.leg { fill: none; stroke-linecap: round; stroke-width: 4; }
+.badge { fill: var(--primary); stroke: #fff; stroke-width: 1; }
+.waveArm { transform-box: view-box; transform-origin: 22px 65px; animation: greetWave .9s .72s both, occasionalWave 12s 3s infinite; }
+.launcher:hover .waveArm, .launcher:focus-visible .waveArm { animation: hoverWave .8s ease-in-out infinite; }
+.tip {
+  position: fixed; right: 20px; bottom: max(100px, calc(env(safe-area-inset-bottom) + 86px));
+  padding: 8px 11px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--card); color: var(--foreground); box-shadow: 0 8px 20px rgb(0 0 0 / .12);
+  font-size: 12px; font-weight: 600; opacity: 0; transform: translateX(5px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.root:has(.launcher:hover) .tip[data-open="false"],
+.root:has(.launcher:focus-visible) .tip[data-open="false"] { opacity: 1; transform: translateX(0); }
+.panel {
+  position: fixed; right: 20px; bottom: max(108px, calc(env(safe-area-inset-bottom) + 92px));
+  display: flex; flex-direction: column; width: min(390px, calc(100vw - 24px));
+  height: min(570px, calc(100dvh - 132px - env(safe-area-inset-bottom)));
+  min-height: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 18px;
+  background: var(--card); color: var(--foreground); box-shadow: 0 20px 55px rgb(0 0 0 / .22);
+  opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(12px) scale(.97);
+  transform-origin: bottom right; transition: opacity .22s ease, transform .22s ease, visibility .22s;
+}
+.panel[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0) scale(1); }
+.header {
+  display: flex; flex: none; align-items: center; gap: 10px; min-height: 69px; padding: 9px 12px;
+  border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--muted) 55%, var(--card));
+}
+.avatar { display: grid; flex: none; width: 40px; height: 42px; place-items: center; overflow: hidden; }
+.avatar .robot { width: 38px; height: 43px; }
+.avatar .robotFloat, .avatar .waveArm, .avatar .eye { animation: none; }
+.identity { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
+.identity strong { font-size: 15px; }
+.identity small { color: var(--muted-foreground); font-size: 11px; }
+.iconButton { display: grid; flex: none; width: 32px; height: 32px; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted-foreground); cursor: pointer; }
+.iconButton:hover { background: var(--secondary); color: var(--foreground); }
+.iconButton:focus-visible, .composer button:focus-visible, .suggestions button:focus-visible, .error button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px 13px; scrollbar-width: thin; }
+.userRow, .assistantRow { display: flex; margin-bottom: 12px; }
+.userRow { justify-content: flex-end; }
+.userBubble, .assistantBubble { max-width: 88%; padding: 9px 11px; border-radius: 13px; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.userBubble { border-bottom-right-radius: 4px; background: var(--primary); color: var(--primary-foreground); }
+.assistantBubble { border: 1px solid var(--border); border-bottom-left-radius: 4px; background: var(--muted); }
+.messageText p + p { margin-top: 6px; }
+.messageText code { padding: 1px 3px; border-radius: 3px; background: color-mix(in srgb, var(--foreground) 12%, transparent); font-size: .92em; }
+.messageText a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.listLine { display: flex; gap: 6px; }
+.listLine span { flex: none; }
+.suggestions { display: flex; flex-wrap: wrap; gap: 7px; padding-top: 4px; }
+.suggestions button { padding: 6px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--foreground); text-align: left; font-size: 11px; cursor: pointer; }
+.suggestions button:hover { border-color: var(--primary); color: var(--primary); }
+.loading { margin: 2px 0 12px; color: var(--muted-foreground); font-size: 12px; }
+.loading span { color: var(--primary); letter-spacing: 2px; }
+.error { margin: 5px 0 10px; padding: 9px; border: 1px solid color-mix(in srgb, #dc2626 35%, var(--border)); border-radius: 8px; color: #b91c1c; font-size: 12px; }
+:global(.dark) .error { color: #fca5a5; }
+.error button { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 3px 0; border: 0; background: transparent; color: inherit; font-weight: 700; cursor: pointer; }
+.composer { display: flex; flex: none; align-items: flex-end; gap: 8px; padding: 10px 12px 4px; border-top: 1px solid var(--border); }
+.composer textarea { flex: 1; min-width: 0; max-height: 100px; resize: vertical; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--background); color: var(--foreground); font: inherit; font-size: 13px; line-height: 1.4; }
+.composer textarea:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.composer button { display: grid; flex: none; width: 38px; height: 38px; place-items: center; border: 0; border-radius: 10px; background: var(--primary); color: var(--primary-foreground); cursor: pointer; }
+.composer button:disabled { opacity: .48; cursor: default; }
+.note { flex: none; padding: 4px 12px 10px; color: var(--muted-foreground); text-align: center; font-size: 10px; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@keyframes greetJump { 0%, 15% { transform: translateY(0); } 38% { transform: translateY(-11px); } 60% { transform: translateY(1px); } 72% { transform: translateY(-2px); } 100% { transform: translateY(0); } }
+@keyframes idleFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes greetWave { 0%, 20%, 100% { transform: rotate(0); } 45%, 75% { transform: rotate(-24deg); } }
+@keyframes occasionalWave { 0%, 75%, 100% { transform: rotate(0); } 79%, 87% { transform: rotate(-22deg); } 83%, 91% { transform: rotate(5deg); } }
+@keyframes hoverWave { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-26deg); } }
+@keyframes blink { 0%, 45%, 47%, 100% { transform: scaleY(1); } 46% { transform: scaleY(.12); } }
+@keyframes launcherRetreat {
+  0%, 14%, 50%, 100% { transform: translateX(0); }
+  22%, 40% { transform: translateX(calc(100% + 24px)); }
+}
+@media (max-width: 640px) {
+  .launcher { right: 12px; width: 62px; height: 68px; }
+  .robot { width: 58px; height: 65px; }
+  .panel { right: 12px; bottom: max(96px, calc(env(safe-area-inset-bottom) + 82px)); width: calc(100vw - 24px); height: min(570px, calc(100dvh - 110px - env(safe-area-inset-bottom))); }
+  .tip { right: 12px; bottom: max(91px, calc(env(safe-area-inset-bottom) + 78px)); }
+}
+@media (max-height: 500px) { .panel { bottom: 68px; height: calc(100dvh - 76px); min-height: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .robotFloat, .waveArm, .eye { animation: none !important; }
+  .panel, .tip, .launcher { transition: none; }
+}

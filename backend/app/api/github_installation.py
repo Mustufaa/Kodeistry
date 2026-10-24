@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
+from app.core.membership import membership
 from app.core.config import settings
 from app.db.session import get_db
 from app.github.auth import delete_github_app_installation, get_github_app_installation
@@ -67,17 +68,7 @@ def matching_personal_installation(
 
 
 async def get_tenant_membership(db: AsyncSession, tenant_id: int, user: User) -> TenantMember:
-    if await db.scalar(select(Tenant.id).where(Tenant.id == tenant_id)) is None:
-        raise HTTPException(status_code=404, detail="Tenant not found.")
-    membership = await db.scalar(
-        select(TenantMember).where(
-            TenantMember.tenant_id == tenant_id,
-            TenantMember.user_id == user.id,
-        )
-    )
-    if membership is None:
-        raise HTTPException(status_code=403, detail="You are not a member of this tenant.")
-    return membership
+    return await membership(db, tenant_id, user, {"OWNER", "ADMIN"})
 
 
 async def require_owner(db: AsyncSession, tenant_id: int, user: User) -> TenantMember:
@@ -207,7 +198,7 @@ async def sync_github_installations(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    await require_owner(db, tenant_id, current_user)
+    await membership(db, tenant_id, current_user, {"OWNER", "ADMIN"})
     installations = (await db.execute(
         select(GitHubInstallation)
         .where(

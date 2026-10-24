@@ -3,17 +3,29 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 
-export function BrandMark({ className }: { className?: string }) {
+// Both variants stay mounted so a theme change swaps pixels in the same frame.
+export function KodeistryLogo({ className }: { className?: string }) {
   return (
-    <Image
-      src="/kodeistry-icon.png"
-      alt=""
-      width={36}
-      height={36}
-      aria-hidden="true"
-      unoptimized
-      className={cn("size-9 shrink-0 object-contain", className)}
-    />
+    <span className={cn("relative block h-9 aspect-[878/996] shrink-0", className)}>
+      <Image
+        src="/brand/kodeistry-black.png"
+        alt="Kodeistry logo"
+        width={878}
+        height={996}
+        unoptimized
+        loading="eager"
+        className="absolute inset-0 h-full w-full object-contain dark:hidden"
+      />
+      <Image
+        src="/brand/kodeistry-white.png"
+        alt="Kodeistry logo"
+        width={878}
+        height={996}
+        unoptimized
+        loading="eager"
+        className="absolute inset-0 hidden h-full w-full object-contain dark:block"
+      />
+    </span>
   );
 }
 
@@ -30,7 +42,7 @@ export function BrandLogo({
 }) {
   return (
     <Link href={href} className={cn("inline-flex items-center gap-3", className)} aria-label={ariaLabel}>
-      <BrandMark />
+      <KodeistryLogo />
       {!compact && <span className="text-[15px] font-semibold tracking-[-0.02em] text-foreground">Kodeistry</span>}
     </Link>
   );

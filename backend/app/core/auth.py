@@ -60,4 +60,8 @@ async def get_current_user(
         user = await db.scalar(select(User).where(User.email == subject))
     if user is None:
         raise HTTPException(status_code=401, detail="User not found.", headers={"WWW-Authenticate": "Bearer"})
+    if not user.is_verified:
+        raise HTTPException(status_code=403, detail="Please verify your email before continuing.")
+    from app.core.repository_access import scope_session
+    scope_session(db, user.id)
     return user

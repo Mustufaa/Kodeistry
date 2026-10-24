@@ -42,8 +42,8 @@ async def get_tenant_installation(
             TenantMember.user_id == current_user.id,
         )
     )
-    if member is None:
-        raise HTTPException(status_code=403, detail="You are not a member of this tenant")
+    if member is None or member.role not in {"OWNER", "ADMIN"}:
+        raise HTTPException(status_code=403, detail="Only owners and admins can manage connected repositories.")
 
     installation = await db.scalar(
         select(GitHubInstallation).where(
@@ -102,23 +102,23 @@ async def save_repository_selection(
     existing = await db.scalars(
         select(Repository).where(Repository.tenant_id == tenant_id)
     )
-    for repository in existing.all():
-        await db.delete(repository)
-
-    saved = [
-        Repository(
-            tenant_id=tenant_id,
-            github_installation_id=installation.id,
-            github_repository_id=github_repo["id"],
-            owner=github_repo["owner"]["login"],
-            name=github_repo["name"],
-            full_name=github_repo["full_name"],
-            private=github_repo["private"],
-            default_branch=github_repo.get("default_branch") or "main",
-        )
-        for github_repo in selected
-    ]
-    db.add_all(saved)
+    by_github_id = {repository.github_repository_id: repository for repository in existing.all()}
+    for repository in by_github_id.values():
+        repository.is_active = False
+    saved = []
+    for github_repo in selected:
+        repository = by_github_id.get(github_repo["id"])
+        if repository is None:
+            repository = Repository(tenant_id=tenant_id, github_repository_id=github_repo["id"])
+            db.add(repository)
+        repository.github_installation_id = installation.id
+        repository.owner = github_repo["owner"]["login"]
+        repository.name = github_repo["name"]
+        repository.full_name = github_repo["full_name"]
+        repository.private = github_repo["private"]
+        repository.default_branch = github_repo.get("default_branch") or "main"
+        repository.is_active = True
+        saved.append(repository)
     await db.commit()
     for repository in saved:
         await db.refresh(repository)
@@ -167,10 +167,10 @@ async def connect_repository(
             detail="You are not a member of this tenant",
         )
 
-    if member.role != "OWNER":
+    if member.role not in {"OWNER", "ADMIN"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only tenant owners can connect repositories",
+            detail="Only team owners and admins can connect repositories",
         )
 
     # --------------------------------------------------
@@ -476,7 +476,7 @@ async def get_repository_review_detail(
 
     findings = findings_result.scalars().all()
     tracked_ids = {finding.tracked_finding_id for finding in findings if finding.tracked_finding_id}
-    tracked_rows = (await db.scalars(select(ReviewFinding).where(ReviewFinding.id.in_(tracked_ids)))).all() if tracked_ids else []
+    tracked_rows = (await db.scalars(select(ReviewFinding).join(ReviewRun, ReviewRun.id == ReviewFinding.review_run_id).where(ReviewFinding.id.in_(tracked_ids), ReviewRun.repository_id == review_run.repository_id, ReviewRun.tenant_id == tenant_id))).all() if tracked_ids else []
     tracked_by_id = {finding.id: finding for finding in tracked_rows}
 
     # --------------------------------------------------
@@ -511,7 +511,7 @@ async def get_repository_review_detail(
                 status=(tracked_by_id.get(finding.tracked_finding_id) or finding).status,
                 verification_status=(tracked_by_id.get(finding.tracked_finding_id) or finding).verification_status,
                 triage_status=(tracked_by_id.get(finding.tracked_finding_id) or finding).triage_status,
-                tracked_finding_id=finding.tracked_finding_id,
+                tracked_finding_id=finding.tracked_finding_id if finding.tracked_finding_id in tracked_by_id else None,
                 checked_commit_sha=(tracked_by_id.get(finding.tracked_finding_id) or finding).checked_commit_sha,
                 checked_at=(tracked_by_id.get(finding.tracked_finding_id) or finding).checked_at,
                 verification_reason=(tracked_by_id.get(finding.tracked_finding_id) or finding).verification_reason,

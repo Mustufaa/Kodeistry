@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { login } from "@/lib/api/auth";
+import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api/client";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api";
@@ -19,6 +20,8 @@ function LoginContent() {
   const params = useSearchParams();
   const error = params.get("github_error");
   const router = useRouter();
+  const client = useQueryClient();
+  const returnTo = params.get("return_to") === "/invite" ? "/invite" : "/onboarding";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -34,7 +37,8 @@ function LoginContent() {
 
     try {
       await login({ email: email.trim(), password });
-      router.replace("/onboarding");
+      await client.cancelQueries(); client.clear();
+      router.replace(returnTo);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Unable to sign in. Please try again.");
       setNeedsVerification(err instanceof ApiError && err.status === 403);
@@ -53,6 +57,7 @@ function LoginContent() {
           <Link href="/" aria-label="Back to landing"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <header className="text-center">
+          {returnTo === "/invite" ? <p className="mb-4 text-sm text-muted-foreground">Sign in with the account that received your team invitation.</p> : null}
           <BrandLogo href="/" ariaLabel="Kodeistry home" />
           <h1 className="mt-9 text-3xl font-semibold tracking-tight">AI Code Reviews That Understand Your Codebase</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">Sign in with GitHub or your email and password to continue reviewing pull requests.</p>
@@ -61,7 +66,7 @@ function LoginContent() {
         <Button
           size="lg"
           className="mt-8 w-full"
-          onClick={() => window.location.assign(`${API_BASE}/auth/github`)}
+          onClick={() => window.location.assign(API_BASE + "/auth/github" + (returnTo === "/invite" ? "?return_to=/invite" : ""))}
         >
           <GitHubMark className="mr-2 h-5 w-5" />
           Continue with GitHub
@@ -105,7 +110,7 @@ function LoginContent() {
         </p>
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-medium text-foreground hover:underline hover:underline-offset-4">
+          <Link href={returnTo === "/invite" ? "/invite" : "/register"} className="font-medium text-foreground hover:underline hover:underline-offset-4">
             Register
           </Link>
         </p>

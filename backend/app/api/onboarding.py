@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
+from app.core.membership import membership
 from app.crud.tenant import create_personal_workspace
 from app.db.session import get_db
 from app.models.github_installation import GitHubInstallation
@@ -75,7 +76,13 @@ async def _workspace_for_user(
             )
 
     if workspace is None:
+        workspace = await db.scalar(
+            select(Tenant).join(TenantMember, TenantMember.tenant_id == Tenant.id)
+            .where(TenantMember.user_id == current_user.id).order_by(TenantMember.created_at, Tenant.id).limit(1)
+        )
+    if workspace is None:
         workspace = await create_personal_workspace(db, current_user)
+    if current_user.onboarding_tenant_id != workspace.id:
         current_user.onboarding_tenant_id = workspace.id
         await db.commit()
     return workspace
@@ -102,8 +109,14 @@ async def get_onboarding_status(
     ) or 0
     connected = installation is not None
     synced = connected and installation.last_synced_at is not None
-    complete = bool(connected and synced)
+    member = await membership(db, workspace.id, current_user)
+    # Shared teams can be used even while an owner is reconnecting GitHub.
+    complete = bool(connected and synced) or member.role != "OWNER" or workspace.workspace_type == "ORGANIZATION"
     next_step = "dashboard" if complete else ("syncing" if connected else "github_install")
+    if member.role == "MEMBER":
+        installation = None
+        connected = False
+        synced = False
 
     return OnboardingStatus(
         user=OnboardingUser(

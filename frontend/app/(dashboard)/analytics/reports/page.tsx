@@ -43,7 +43,14 @@ export default function ReportsPage() {
     const end = new Date(); const start = new Date(); start.setDate(start.getDate() - 29);
     setFilters({ ...filters, timeframe, start_date: next === "custom" ? start.toISOString().slice(0, 10) : undefined, end_date: next === "custom" ? end.toISOString().slice(0, 10) : undefined });
   }
-  function exportReport() { if (!data) return; downloadReportCsv(data, `kodeistry-${mode}-report-${data.end_date}.csv`); toast.success("Report downloaded"); }
+  async function exportReport() {
+    if (!tenantId) return;
+    try {
+      const fresh = await getAnalytics(tenantId, filters);
+      downloadReportCsv(fresh, "kodeistry-report-" + fresh.end_date + ".csv");
+      toast.success("Report downloaded");
+    } catch { toast.error("Unable to export this report. Check your access and try again."); }
+  }
   return <div className="space-y-6">
     <PageHeader title="Reports" description="Shareable, engineering-focused summaries built from review data." actions={<Button onClick={exportReport} disabled={!data}><Download className="size-4" />Export CSV</Button>} />
     <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"><div className="inline-flex w-fit rounded-lg border bg-card p-1">{(["weekly", "monthly", "custom"] as const).map((item) => <button key={item} onClick={() => choose(item)} className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize ${mode === item ? "bg-muted text-foreground" : "text-muted-foreground"}`}>{item === "custom" ? "Custom Range" : `${item} Report`}</button>)}</div><ReportFilters filters={filters} repositories={repositories.data ?? []} onChange={setFilters} allowCustom={false} /></div>

@@ -34,6 +34,7 @@
   box-shadow: 0 3px 0 color-mix(in srgb, var(--primary) 9%, transparent);
 }
 
+.footerLinks { min-width: 0; padding-inline-end: 96px; }
 .navLinks a,
 .footerLinks a {
   transition: color .15s;
@@ -275,6 +276,7 @@
 }
 
 @media (max-width: 640px) {
+  .footerLinks { padding-inline-end: 84px; }
   .hero { padding-top: 45px; padding-bottom: 68px; }
   .heroTitle { font-size: clamp(41px, 11vw, 57px); }
   .heroDescription { margin-top: 20px; }
@@ -292,4 +294,20 @@
   .voxelCard,
   .navLinks a,
   .footerLinks a { transition: none; }
+}
+
+.heroPreviewTrack {
+  position: relative;
+  width: min(100%, 780px);
+  margin-inline: auto;
+  min-width: 0;
+  overflow: hidden;
+  padding: 22px;
+}
+@media (max-width: 640px) {
+  .heroPreviewTrack { padding: 18px; }
+}
+
+@media (max-width: 360px) {
+  .footerLinks { padding-inline-end: 80px; }
 }

@@ -24,3 +24,8 @@ test_*.py
 !tests/test_fix_workflow.py
 !tests/test_review_detail_response.py
 tests/.gitkeep
+!tests/test_chat.py
+
+!tests/test_team_members.py
+
+!tests/test_repository_access.py

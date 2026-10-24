@@ -100,7 +100,7 @@ async def get_dashboard_summary(
     return DashboardSummaryResponse(
         user=CurrentUserResponse.model_validate(current_user),
         workspace=TenantResponse.model_validate(tenant),
-        github=GitHubInstallationResponse.model_validate(installation) if installation else None,
+        github=GitHubInstallationResponse.model_validate(installation) if installation and membership.role != "MEMBER" else None,
         repositories_count=repositories_count,
         pull_requests_count=pull_requests_count,
         reviews_count=reviews_count,

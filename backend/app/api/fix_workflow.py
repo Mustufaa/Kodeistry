@@ -44,8 +44,15 @@ async def authorized(db: AsyncSession, tenant_id: int, finding_id: int, user_id:
         raise HTTPException(404, "Finding not found or repository access revoked.")
     finding, review, repository, installation = row
     if finding.tracked_finding_id:
-        finding = await db.get(ReviewFinding, finding.tracked_finding_id)
-        review = await db.get(ReviewRun, finding.review_run_id)
+        tracked = (await db.execute(
+            select(ReviewFinding, ReviewRun)
+            .join(ReviewRun, ReviewRun.id == ReviewFinding.review_run_id)
+            .where(ReviewFinding.id == finding.tracked_finding_id,
+                   ReviewRun.tenant_id == tenant_id, ReviewRun.repository_id == repository.id)
+        )).one_or_none()
+        if tracked is None:
+            raise HTTPException(404, "Finding not found or repository access revoked.")
+        finding, review = tracked
     return finding, review, repository, installation
 
 

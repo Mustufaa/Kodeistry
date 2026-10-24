@@ -17,7 +17,6 @@ from app.crud.tenant import create_personal_workspace
 from app.crud.user import authenticate_user, create_user, get_user_by_email, get_user_by_reset_token, get_user_by_verification_token
 from app.db.session import get_db
 from app.models.user import User
-from app.models.github_installation import GitHubInstallation
 from app.schemas.auth import ForgotPasswordRequest, ResetPasswordRequest, Token, UserLogin, UserRegister
 from app.schemas.tenant import CurrentUserResponse, TenantResponse
 from app.services.email import send_password_reset_email, send_verification_email
@@ -122,10 +121,10 @@ async def csrf_token(
 
 
 @router.get("/github")
-async def github_oauth_start():
+async def github_oauth_start(return_to: str | None = None):
     if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_CLIENT_SECRET:
         raise HTTPException(status_code=503, detail="GitHub OAuth is not configured.")
-    state = jwt.encode({"purpose": "github_oauth", "nonce": secrets.token_urlsafe(32), "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    state = jwt.encode({"purpose": "github_oauth", "return_to": "/invite" if return_to == "/invite" else None, "nonce": secrets.token_urlsafe(32), "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     params = {"client_id": settings.GITHUB_CLIENT_ID, "redirect_uri": settings.GITHUB_REDIRECT_URI, "state": state}
     response = RedirectResponse(f"{GITHUB_AUTHORIZE_URL}?{urlencode(params)}", status_code=302)
     response.set_cookie(settings.OAUTH_STATE_COOKIE_NAME, state, max_age=600, httponly=True, secure=settings.AUTH_COOKIE_SECURE, samesite="lax", path="/api/auth/github")
@@ -198,7 +197,7 @@ async def _fetch_github_identity(client: httpx.AsyncClient, code: str) -> tuple[
             'verified_email_missing',
             'A verified email address is required. Verify an email on GitHub, then try again.',
         )
-    return github_user, email.lower()
+    return github_user, email.strip().lower()
 
 
 async def _github_identity(code: str) -> tuple[dict, str]:
@@ -206,15 +205,27 @@ async def _github_identity(code: str) -> tuple[dict, str]:
         return await _fetch_github_identity(client, code)
 
 
+def _oauth_failure(message: str, cookie_state: str | None) -> RedirectResponse:
+    response = _frontend_redirect("/login", message)
+    try:
+        payload = jwt.decode(cookie_state or "", settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("purpose") == "github_oauth" and payload.get("return_to") == "/invite":
+            response.headers["location"] += "&return_to=%2Finvite"
+    except JWTError:
+        pass
+    response.delete_cookie(settings.OAUTH_STATE_COOKIE_NAME, path="/api/auth/github")
+    return response
+
+
 @router.get("/github/callback")
 async def github_oauth_callback(request: Request, code: str | None = None, state: str | None = None, error: str | None = None, db: AsyncSession = Depends(get_db)):
     cookie_state = request.cookies.get(settings.OAUTH_STATE_COOKIE_NAME)
     if error:
-        response = _frontend_redirect("/login", "GitHub authorization was cancelled.")
+        response = _oauth_failure("GitHub authorization was cancelled.", cookie_state)
         response.delete_cookie(settings.OAUTH_STATE_COOKIE_NAME, path="/api/auth/github")
         return response
     if not code or not state or not cookie_state or not secrets.compare_digest(state, cookie_state):
-        response = _frontend_redirect("/login", "Invalid or expired GitHub login session.")
+        response = _oauth_failure("Invalid or expired GitHub login session.", cookie_state)
         response.delete_cookie(settings.OAUTH_STATE_COOKIE_NAME, path="/api/auth/github")
         return response
     try:
@@ -227,7 +238,7 @@ async def github_oauth_callback(request: Request, code: str | None = None, state
         if not login_name:
             raise RuntimeError("GitHub username is missing")
         user = await db.scalar(select(User).where(User.github_id == github_id))
-        email_user = await db.scalar(select(User).where(func.lower(User.email) == email))
+        email_user = await db.scalar(select(User).where(func.lower(func.trim(User.email)) == email))
         if user is not None and email_user is not None and user.id != email_user.id:
             raise RuntimeError("This GitHub email belongs to another Kodeistry account")
         if user is None and email_user is not None:
@@ -253,19 +264,16 @@ async def github_oauth_callback(request: Request, code: str | None = None, state
             user.github_avatar_url = github_user.get("avatar_url")
             user.auth_provider = "github"
             user.is_verified = True
-        workspace = await create_personal_workspace(db, user)
-        user.onboarding_tenant_id = workspace.id
-        installation = await db.scalar(
-            select(GitHubInstallation).where(
-                GitHubInstallation.tenant_id == workspace.id,
-                GitHubInstallation.is_active.is_(True),
-                GitHubInstallation.last_synced_at.is_not(None),
-            )
-        )
-        await db.commit()
-        response = _frontend_redirect(
-            "/dashboard" if installation is not None else "/onboarding/github"
-        )
+        # The signed state carries only an allowlisted path; invitation secrets stay in the browser.
+        invitation_login = state_payload.get("return_to") == "/invite"
+        if invitation_login:
+            await db.commit()
+            response = _frontend_redirect("/invite")
+        else:
+            from app.api.onboarding import get_onboarding_status
+            onboarding = await get_onboarding_status(db, user)
+            await db.commit()
+            response = _frontend_redirect("/dashboard" if onboarding.onboarding_complete else "/onboarding/github")
         _set_auth_cookie(
             response,
             create_access_token({"sub": str(user.id), "uid": user.id}),
@@ -276,13 +284,13 @@ async def github_oauth_callback(request: Request, code: str | None = None, state
     except GitHubOAuthError as exc:
         await db.rollback()
         logger.warning('GitHub OAuth callback failed: %s', exc.code)
-        response = _frontend_redirect('/login', exc.user_message)
+        response = _oauth_failure(exc.user_message, cookie_state)
         response.delete_cookie(settings.OAUTH_STATE_COOKIE_NAME, path='/api/auth/github')
         return response
     except (JWTError, KeyError, TypeError, ValueError, RuntimeError, httpx.HTTPError) as exc:
         await db.rollback()
         logger.warning("GitHub OAuth callback failed: %s", type(exc).__name__)
-        response = _frontend_redirect("/login", "GitHub login could not be completed. Please try again.")
+        response = _oauth_failure("GitHub login could not be completed. Please try again.", cookie_state)
         response.delete_cookie(settings.OAUTH_STATE_COOKIE_NAME, path="/api/auth/github")
         return response
 

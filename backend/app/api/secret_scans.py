@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
+from app.core.membership import membership
 from app.core.config import settings
 from app.db.session import get_db
 from app.github.auth import get_installation_access_token
@@ -141,6 +142,7 @@ async def start_scan(
     if len(settings.SECRET_SCANNER_HMAC_KEY.encode("utf-8")) < 32:
         raise HTTPException(status_code=503, detail="Secret Scanner is not configured.")
     repository, installation = await _connected_repository(db, user, body.repository_id)
+    await membership(db, repository.tenant_id, user, {"OWNER", "ADMIN"})
     await _require_remote_access(repository, installation)
     branch = body.branch.strip()
     if branch != body.branch or branch.startswith("-") or ".." in branch or "@{" in branch or "\\" in branch:
@@ -217,6 +219,7 @@ async def get_scan(scan_id: int, db: AsyncSession = Depends(get_db), user: User 
 @router.post("/{scan_id}/cancel", response_model=SecretScanView)
 async def cancel_scan(scan_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     scan = await _scan_for_user(db, user, scan_id)
+    await membership(db, scan.tenant_id, user, {"OWNER", "ADMIN"})
     if scan.status == "QUEUED":
         scan.status = "CANCELLED"
         scan.stage = "Cancelled"
@@ -279,6 +282,7 @@ async def update_finding(
     if finding is None:
         raise HTTPException(status_code=404, detail="Finding not found.")
     repository, installation = await _connected_repository(db, user, finding.repository_id)
+    await membership(db, repository.tenant_id, user, {"OWNER", "ADMIN"})
     await _require_remote_access(repository, installation)
     if body.disposition == "DISMISSED" and body.reason is None:
         raise HTTPException(status_code=422, detail="Choose a dismissal reason.")
