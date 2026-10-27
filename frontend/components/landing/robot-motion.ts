@@ -1,0 +1,34 @@
+﻿export type Point = { x: number; y: number };
+export type Bounds = { left: number; right: number; top: number; bottom: number };
+export const clamp = (n: number, min: number, max: number) => Math.min(Math.max(n, min), max);
+export const GROUND_Y = 7.5 / Math.hypot(7.5, 6.2);
+
+export function viewportBounds(width: number, height: number, size: number, headerBottom: number): Bounds {
+  const inset = size / 2 + 8;
+  const left = Math.min(inset, width / 2);
+  const top = Math.min(Math.max(inset, headerBottom + inset * 0.65), height / 2);
+  return { left, right: Math.max(left, width - inset), top, bottom: Math.max(top, height - inset) };
+}
+export function contain(point: Point, bounds: Bounds): Point {
+  return { x: clamp(point.x, bounds.left, bounds.right), y: clamp(point.y, bounds.top, bounds.bottom) };
+}
+export function distance(a: Point, b: Point) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+/** Same smooth steering as the original; account for the camera's ground projection. */
+export function walk(
+  state: { position: Point; heading: number; speed: number },
+  target: Point, bounds: Bounds, stopped: boolean, dt: number, maxSpeed: number,
+) {
+  const desired = Math.atan2(target.x - state.position.x, (target.y - state.position.y) / GROUND_Y);
+  const diff = Math.atan2(Math.sin(desired - state.heading), Math.cos(desired - state.heading));
+  const step = stopped ? 0 : clamp(diff, -2.6 * dt, 2.6 * dt);
+  state.heading += step;
+  const turnPenalty = 1 - Math.min(Math.abs(diff) / 1.2, 1) * 0.7;
+  state.speed += ((stopped ? 0 : maxSpeed * turnPenalty) - state.speed) * Math.min(1, dt * 3.5);
+  state.position = contain({
+    x: state.position.x + Math.sin(state.heading) * state.speed * dt,
+    y: state.position.y + Math.cos(state.heading) * state.speed * GROUND_Y * dt,
+  }, bounds);
+  return { diff, turn: step / Math.max(dt, 0.0001) / 2.6 };
+}
+

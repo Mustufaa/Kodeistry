@@ -5,9 +5,8 @@ import { ArrowRight, ArrowUpRight, Mail, Sparkles } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { BentoFeatures } from "@/components/landing/bento-features";
 import { CodeReviewAnimation } from "@/components/landing/code-review-animation";
-import { CrawlingBug } from "@/components/landing/crawling-bug";
+import { RoboticBugLoader } from "@/components/landing/robotic-bug-loader";
 import { MacWindow } from "@/components/landing/mac-window";
-import { SectionInsect } from "@/components/landing/section-insect";
 import styles from "./landing-page.module.css";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 
@@ -45,6 +44,7 @@ export default function Page() {
         <section className={"mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 " + styles.hero}>
           <div className={"grid items-center gap-10 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] " + styles.heroGrid}>
             <div className={styles.heroCopy}>
+              <p className={styles.heroBrand}>Kodeistry</p>
               <div className={styles.heroBadge}>
                 <Sparkles className="h-3.5 w-3.5" /> AI PR Review Platform
               </div>
@@ -61,9 +61,8 @@ export default function Page() {
               </div>
             </div>
 
-            <div className={styles.heroPreviewTrack}>
+            <div data-bug-scan className={styles.heroPreviewTrack}>
               <CodeReviewAnimation />
-              <SectionInsect path="hero" />
             </div>
           </div>
         </section>
@@ -196,7 +195,7 @@ export default function Page() {
           </div>
         </div>
       </footer>
-      <CrawlingBug />
+      <RoboticBugLoader />
     </div>
   );
 }

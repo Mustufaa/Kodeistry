@@ -10,7 +10,6 @@ import {
 import type { ReactNode } from "react";
 
 import { MacWindow } from "./mac-window";
-import { SectionInsect } from "./section-insect";
 import styles from "./bento-features.module.css";
 
 function FeatureCard({
@@ -103,7 +102,6 @@ quality,[count]`}</code></pre>
             </MacWindow>
           </FeatureCard>
         </div>
-        <SectionInsect path="grid" />
       </div>
     </>
   );

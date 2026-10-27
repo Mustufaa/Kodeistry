@@ -22,7 +22,7 @@
 
 .visual {
   position: relative;
-  height: 480px;
+  height: var(--hero-preview-height, 480px);
   overflow: hidden;
   background: linear-gradient(180deg, color-mix(in srgb, var(--secondary) 58%, var(--background)), var(--background));
   border: 1px solid var(--border);
@@ -259,4 +259,13 @@
 @media (prefers-reduced-motion: reduce) {
   .editor,
   .codeBlock { transition: none; }
+}
+
+@media (min-width: 1024px) {
+  .editor { top: clamp(44px, 14%, 68px); bottom: clamp(36px, 12%, 58px); }
+  .codeList { gap: 8px; padding: 10px; }
+  .codeBlock { padding: 8px 10px; }
+  .editor .codeLine { font: 11px/1.45 var(--font-geist-mono), ui-monospace, monospace; }
+  .floatOne { top: 16px; }
+  .floatTwo { bottom: 12px; }
 }
