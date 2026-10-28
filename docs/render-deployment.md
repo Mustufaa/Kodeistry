@@ -1,5 +1,24 @@
 # Deploy Kodeistry on Render
 
+## Existing native Python backend service
+
+If the build log says `pip install -r requirements.txt`, Render is using the native Python runtime. Configure this backend service with:
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | `backend` |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `python -m app.server` |
+| Health Check Path | `/health` |
+
+The repository and backend `.python-version` files select Python 3.12, matching the Docker backend. Push these files before redeploying. Remove any `PYTHON_VERSION` environment override so Render uses the version file. If an override is required, Render requires a full version such as `3.12.10`. See [Render's Python version settings](https://render.com/docs/python-version).
+
+Use the same backend environment variables and GitHub App secret file described in [the backend environment guide](../RENDER_BACKEND_ENV.md). The start command reads Render's `PORT` automatically. Clear the build cache and redeploy; confirm the log selects Python 3.12 before installing packages.
+
+Python 3.14 causes the currently pinned dependencies, including `pydantic-core==2.23.4`, to build from source. The reported Cargo read-only filesystem error occurs during that build. Select Python 3.12 to use compatible wheels.
+
+## Docker Blueprint deployment
+
 The repository contains a two-service `render.yaml` Blueprint with free Docker web services and no new database. Fill in the [backend](../RENDER_BACKEND_ENV.md) and [frontend](../RENDER_FRONTEND_ENV.md) environment values in Render before deploying. The backend uses the existing Supabase PostgreSQL session pooler. Docker builds exclude local `.env` files and keys.
 
 1. In Supabase, open **Connect > Session pooler**, use the exact host and user shown, and set `DATABASE_URL` on `kodeistry-api` with the `postgresql+asyncpg://` driver. The backend and Alembic request TLS for Supabase.
