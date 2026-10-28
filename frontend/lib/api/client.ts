@@ -2,13 +2,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api";
 
 export function apiUrl(path: string) { return `${API_BASE}${path}`; }
 
-const isNgrokApi = [".ngrok-free.dev", ".ngrok-free.app", ".ngrok.app", ".ngrok.io"]
-  .some((suffix) => new URL(API_BASE).hostname.endsWith(suffix));
-
 export function apiHeaders(initial?: HeadersInit) {
-  const headers = new Headers(initial);
-  if (isNgrokApi) headers.set("ngrok-skip-browser-warning", "true");
-  return headers;
+  return new Headers(initial);
 }
 
 export class ApiError extends Error {

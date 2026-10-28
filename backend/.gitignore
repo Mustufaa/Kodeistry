@@ -1,31 +1,7 @@
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.env
-.venv/
-venv/
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-tests/
+# Local-only backend scratch files. Real regression tests stay visible to Git.
 output.txt
 .tmp_*.py
-dist/
-build/
-*.egg-info/
-# Test files
-test_*.py
-*_test.py
-
-# Keep fix-workflow regression tests in version control.
-!tests/
-!tests/test_fix_workflow.py
-!tests/test_review_detail_response.py
+/test_diff.py
+/test_gemini.py
+/test_review.py
 tests/.gitkeep
-!tests/test_chat.py
-
-!tests/test_team_members.py
-
-!tests/test_repository_access.py

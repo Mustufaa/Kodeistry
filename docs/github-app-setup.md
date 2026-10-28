@@ -6,12 +6,12 @@ Kodeistry uses the GitHub App web authorization flow for identity and GitHub App
 
 Use the routes below exactly as written.
 
-| GitHub setting | Local development | Public/tunnel development |
+| GitHub setting | Local development | Render deployment |
 | --- | --- | --- |
 | Homepage URL | `http://localhost:3000` | your deployed frontend URL |
 | User authorization callback URL | `http://localhost:8000/api/auth/github/callback` | `https://<backend-domain>/api/auth/github/callback` |
 | Setup URL | `http://localhost:8000/api/github/setup/callback` | `https://<backend-domain>/api/github/setup/callback` |
-| Webhook URL | not reachable by GitHub without a tunnel | `https://<backend-domain>/api/github/webhook` |
+| Webhook URL | not reachable by GitHub from localhost | `https://<backend-domain>/api/github/webhook` |
 
 Settings:
 
@@ -43,9 +43,9 @@ Users choose **All repositories** or **Only select repositories** in GitHub's ow
 
 ## Localhost versus a public backend URL
 
-The OAuth callback and Setup URL are top-level browser redirects. They may use `localhost` when GitHub and the browser are running on the same development machine. The webhook is a server-to-server request from GitHub and **must** use a public HTTPS URL such as ngrok.
+The OAuth callback and Setup URL are top-level browser redirects. They may use `localhost` when GitHub and the browser are running on the same development machine. The webhook is a server-to-server request from GitHub and **must** use a public HTTPS URL such as the Render backend.
 
-For the least confusing end-to-end test, expose backend port 8000 through ngrok and use that same HTTPS backend origin for the authorization callback, Setup URL, Webhook URL, `BACKEND_URL`, `GITHUB_REDIRECT_URI`, and `NEXT_PUBLIC_API_URL` (with `/api` appended only for `NEXT_PUBLIC_API_URL`).
+For deployment, use the Render backend HTTPS origin for the authorization callback, Setup URL, Webhook URL, `BACKEND_URL`, `GITHUB_REDIRECT_URI`, and `NEXT_PUBLIC_API_URL` (with `/api` appended only for `NEXT_PUBLIC_API_URL`). For local development, use localhost for browser redirects; GitHub webhooks require the deployed HTTPS backend.
 
 When the frontend and backend are on different sites, set:
 

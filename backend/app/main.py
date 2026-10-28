@@ -1,8 +1,13 @@
-from fastapi import Depends, FastAPI, Request
+import asyncio
+import logging
+
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from app.db.database import engine
 from app.core.config import settings
 from app.core.membership import authorize_team_request
 from app.api.team import router as team_router
@@ -40,7 +45,7 @@ app.add_middleware(
     allow_origins=settings.CORS_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "ngrok-skip-browser-warning"],
+    allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
 )
 
 app.include_router(auth.router, prefix="/api")
@@ -79,3 +84,15 @@ async def health():
         "status": "healthy",
         "service": "Kodeistry API"
     }
+
+
+@app.get("/health/db")
+async def database_health():
+    try:
+        async with asyncio.timeout(20):
+            async with engine.connect() as connection:
+                await connection.execute(text("SELECT 1"))
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Database health check failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Database unavailable") from None
+    return {"status": "healthy", "database": "connected"}

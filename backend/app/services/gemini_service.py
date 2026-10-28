@@ -231,7 +231,7 @@ async def review_with_openrouter(
         ),
         "Content-Type": "application/json",
         "HTTP-Referer": (
-            "http://localhost:8000"
+            settings.BACKEND_URL
         ),
         "X-Title": (
             "Kodeistry Code Reviewer"

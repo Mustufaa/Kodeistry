@@ -1,6 +1,7 @@
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
+from sqlalchemy.engine import make_url
 from alembic import context
 
 from app.core.config import settings
@@ -23,10 +24,10 @@ from app.models.secret_scan import SecretScanRun, SecretFinding, SecretOccurrenc
 config = context.config
 
 # Set database URL from .env
-config.set_main_option(
-    "sqlalchemy.url",
-    settings.DATABASE_URL.replace("+asyncpg", "")
-)
+migration_url = make_url(settings.DATABASE_URL).set(drivername="postgresql+psycopg2")
+if (migration_url.host or "").endswith(".supabase.com"):
+    migration_url = migration_url.difference_update_query(["ssl"]).update_query_dict({"sslmode": "require"})
+config.set_main_option("sqlalchemy.url", migration_url.render_as_string(hide_password=False).replace("%", "%%"))
 
 # Configure logging
 if config.config_file_name is not None:
