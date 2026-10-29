@@ -42,3 +42,5 @@ services:
     envVars:
       - key: NEXT_PUBLIC_API_URL
         sync: false
+      - key: SITE_URL
+        value: https://kodeistry.onrender.com

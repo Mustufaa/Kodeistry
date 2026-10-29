@@ -56,3 +56,8 @@
 }
 @keyframes sweep { to { transform: translateY(-18px); opacity: .2; } }
 @media (max-width: 640px) { .robot { width: 210px; height: 210px; } .scan { bottom: -5px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .scan::before { animation: none; }
+  .robot { will-change: auto; }
+}

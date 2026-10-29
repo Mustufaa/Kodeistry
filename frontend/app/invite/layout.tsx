@@ -1,3 +1,3 @@
-import type { Metadata } from "next";
-export const metadata: Metadata = { title: "Join your team | Kodeistry", robots: { index: false, follow: false }, referrer: "no-referrer" };
+import { privateMetadata } from "@/lib/seo";
+export const metadata = privateMetadata("Join your team");
 export default function InvitationLayout({ children }: { children: React.ReactNode }) { return children; }

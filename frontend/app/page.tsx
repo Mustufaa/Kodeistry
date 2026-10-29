@@ -1,4 +1,9 @@
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/json-ld";
+import { homeTitle, productData, publicMetadata, siteDescription } from "@/lib/seo";
+import { PublicLinks, PublicNavigation } from "@/components/marketing/public-navigation";
+
+export const metadata = publicMetadata("/", homeTitle, siteDescription);
 import { Pixelify_Sans } from "next/font/google";
 import { ArrowRight, ArrowUpRight, Mail, Sparkles } from "lucide-react";
 
@@ -21,8 +26,10 @@ const steps = [
 export default function Page() {
   return (
     <div className={pixelify.variable + " " + styles.landing}>
+      <JsonLd data={productData} />
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <header className={styles.siteHeader}>
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+        <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <BrandLogo compact href="/" ariaLabel="Kodeistry home" />
 
           <div className={"hidden items-center gap-8 text-sm text-muted-foreground md:flex " + styles.navLinks}>
@@ -34,13 +41,14 @@ export default function Page() {
 
           <div className="flex items-center gap-3">
             <ThemeToggle />
+            <PublicNavigation />
             <Link href="/login" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground md:inline-flex">Login</Link>
             <Link href="/register" className={styles.headerCta}>Get Started</Link>
           </div>
         </nav>
       </header>
 
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <section className={"mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 " + styles.hero}>
           <div className={"grid items-center gap-10 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] " + styles.heroGrid}>
             <div className={styles.heroCopy}>
@@ -103,7 +111,7 @@ export default function Page() {
               <div>
                 <div className={styles.sectionEyebrow}>GitHub integration</div>
                 <h2 className={styles.sectionHeading}>Connected to the review flow your developers already use</h2>
-                <p className="mt-4 text-muted-foreground">Kodeistry plugs into GitHub App installation patterns and uses repository context, PR metadata, and review history to prioritize issues based on real code changes.</p>
+                <p className="mt-4 text-muted-foreground">Kodeistry connects through a GitHub App, analyzes added lines from pull request diffs, and returns findings for developers to inspect in GitHub and the dashboard.</p>
               </div>
               <div data-bug-card className={styles.integrationPanel}>
                 <div className="w-full">
@@ -166,6 +174,7 @@ export default function Page() {
       </main>
 
       <footer className={"mx-auto max-w-7xl px-4 py-8 text-sm sm:px-6 lg:px-8 " + styles.siteFooter}>
+        <div className="mb-6"><PublicLinks /></div>
         <div className="flex flex-col justify-between gap-4 border-t pt-6 sm:flex-row">
           <div className="flex items-center gap-3">
             <BrandLogo compact href="/" ariaLabel="Kodeistry home" />

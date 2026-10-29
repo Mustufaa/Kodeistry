@@ -12,7 +12,7 @@ export function KodeistryLogo({ className }: { className?: string }) {
         alt="Kodeistry logo"
         width={878}
         height={996}
-        unoptimized
+        sizes="48px"
         loading="eager"
         className="absolute inset-0 h-full w-full object-contain dark:hidden"
       />
@@ -21,7 +21,7 @@ export function KodeistryLogo({ className }: { className?: string }) {
         alt="Kodeistry logo"
         width={878}
         height={996}
-        unoptimized
+        sizes="48px"
         loading="eager"
         className="absolute inset-0 hidden h-full w-full object-contain dark:block"
       />

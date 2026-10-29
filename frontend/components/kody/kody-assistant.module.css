@@ -102,6 +102,6 @@
 }
 @media (max-height: 500px) { .panel { bottom: 68px; height: calc(100dvh - 76px); min-height: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .robotFloat, .waveArm, .eye { animation: none !important; }
+  .launcher, .robotFloat, .waveArm, .eye { animation: none !important; }
   .panel, .tip, .launcher { transition: none; }
 }

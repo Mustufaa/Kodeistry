@@ -1,3 +1,6 @@
+import { privateMetadata } from "@/lib/seo";
+export const metadata = privateMetadata("Settings");
+
 import { SettingsBackLink } from "@/components/settings/settings-back-link";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {

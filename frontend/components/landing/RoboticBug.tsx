@@ -22,6 +22,7 @@ export default function RoboticBug() {
     if (!overlay || !robot || !scan || !label || !page) return;
 
     const coarse = window.matchMedia("(pointer: coarse)");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const device = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
     const lowPower = (device.deviceMemory ?? 8) <= 4 || navigator.hardwareConcurrency <= 4 || coarse.matches || Boolean(device.connection?.saveData);
     let scene: ReturnType<typeof createRobotScene> | undefined;
@@ -102,13 +103,19 @@ export default function RoboticBug() {
     }
     function startLoop() {
       if (disposed || !scene || contextLost || frame || document.hidden) return;
-      // Automatic playback is intentional, including with reduced-motion enabled.
+      if (reducedMotion.matches) {
+        overlay!.dataset.motion = "reduced";
+        if (dirty) measure();
+        position();
+        scene.render(0, 0, 0, state.heading, 0, 0);
+        return;
+      }
       overlay!.dataset.motion = "running";
       frame = window.requestAnimationFrame(tick);
     }
     function tick(timestamp: number) {
       frame = 0;
-      if (disposed || !scene || document.hidden) return;
+      if (disposed || !scene || document.hidden || reducedMotion.matches) return;
       if (last && timestamp - last < frameInterval - 1) {
         frame = window.requestAnimationFrame(tick);
         return;
@@ -184,7 +191,7 @@ export default function RoboticBug() {
     }
     function onPointer(event: PointerEvent) {
       // Touch and pen scrolling never become follow targets.
-      if (event.pointerType !== "mouse" || coarse.matches) return;
+      if (event.pointerType !== "mouse" || coarse.matches || reducedMotion.matches) return;
       pointer = contain({ x: event.clientX, y: event.clientY }, bounds);
       pointerAt = now;
     }
@@ -195,6 +202,14 @@ export default function RoboticBug() {
     }
     function onLayout() {
       onScroll();
+      if (reducedMotion.matches) startLoop();
+    }
+    function onMotionChange() {
+      stopLoop();
+      stopScan();
+      pointer = undefined;
+      dirty = true;
+      startLoop();
     }
     function onVisibility() {
       if (document.hidden) { stopLoop(); scan!.hidden = true; }
@@ -255,6 +270,7 @@ export default function RoboticBug() {
     window.addEventListener("scroll", onScroll, { passive: true });
     window.visualViewport?.addEventListener("resize", onLayout, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
+    reducedMotion.addEventListener("change", onMotionChange);
     schedule();
     return () => {
       disposed = true;
@@ -266,6 +282,7 @@ export default function RoboticBug() {
       window.removeEventListener("scroll", onScroll);
       window.visualViewport?.removeEventListener("resize", onLayout);
       document.removeEventListener("visibilitychange", onVisibility);
+      reducedMotion.removeEventListener("change", onMotionChange);
       canvas?.removeEventListener("webglcontextlost", onContextLost);
       canvas?.removeEventListener("webglcontextrestored", onContextRestored);
       scene?.dispose();

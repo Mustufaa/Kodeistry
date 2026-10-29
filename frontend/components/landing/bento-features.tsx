@@ -51,7 +51,7 @@ export function BentoFeatures() {
 40    if (!session) throw new Error("Unauthorized");
 41    return session.user;
 42  }`}</code></pre>
-              <div className={styles.reviewNote}><Sparkles size={13} aria-hidden="true" /> Review checks the changed lines and their context.</div>
+              <div className={styles.reviewNote}><Sparkles size={13} aria-hidden="true" /> Review checks added lines from the pull request diff.</div>
             </MacWindow>
           </FeatureCard>
 
