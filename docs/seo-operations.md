@@ -80,7 +80,7 @@ $env:DATABASE_URL = 'sqlite+aiosqlite:///:memory:'
 python -m pytest -q -p no:cacheprovider
 ```
 
-Use the browser at 320, 375, 768, and 1440px to check horizontal overflow, mobile menu access, keyboard focus/skip links, light/dark theme, and Kody. Turn on reduced motion: the hero stays at its completed frame, the robot remains visible but stationary, and Kody stops its continuous animations. Check that animations resume if the preference changes.
+Use the browser at 320, 375, 768, and 1440px to check horizontal overflow, mobile menu access, keyboard focus/skip links, light/dark theme, and Kody. Turn on reduced motion: the hero stays at its completed frame, the robot uses a slower patrol without pointer chasing or scan effects, and Kody stops its continuous animations. Check that animations resume if the preference changes.
 
 Run Lighthouse or PageSpeed Insights on the deployed URL and track field LCP, INP, and CLS through Search Console. Build/HTML checks are not Web Vitals measurements. Test real OAuth and an authorized test-repository pull request separately; an HTML check does not prove live installation/webhook/provider behavior.
 

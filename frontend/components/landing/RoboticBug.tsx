@@ -36,7 +36,8 @@ export default function RoboticBug() {
     let size = 300;
     let dirty = true;
     let initialized = false;
-    let frameInterval = 1000 / (lowPower ? 30 : 60);
+    const preferredFrameInterval = () => 1000 / (reducedMotion.matches ? 20 : lowPower ? 30 : 60);
+    let frameInterval = preferredFrameInterval();
     let contextLost = false;
     let renderSamples = 0;
     let renderCost = 0;
@@ -103,19 +104,14 @@ export default function RoboticBug() {
     }
     function startLoop() {
       if (disposed || !scene || contextLost || frame || document.hidden) return;
-      if (reducedMotion.matches) {
-        overlay!.dataset.motion = "reduced";
-        if (dirty) measure();
-        position();
-        scene.render(0, 0, 0, state.heading, 0, 0);
-        return;
-      }
-      overlay!.dataset.motion = "running";
+      // Keep the mascot walking; reduced motion uses a slower patrol without
+      // pointer chasing or scan effects instead of freezing the first frame.
+      overlay!.dataset.motion = reducedMotion.matches ? "reduced" : "running";
       frame = window.requestAnimationFrame(tick);
     }
     function tick(timestamp: number) {
       frame = 0;
-      if (disposed || !scene || document.hidden || reducedMotion.matches) return;
+      if (disposed || !scene || contextLost || document.hidden) return;
       if (last && timestamp - last < frameInterval - 1) {
         frame = window.requestAnimationFrame(tick);
         return;
@@ -133,7 +129,7 @@ export default function RoboticBug() {
         stopped = distance(state.position, target) < size * 0.35;
         overlay!.dataset.mode = stopped ? "locked" : "following";
       } else {
-        if (!scanTarget && now >= nextScan) {
+        if (!reducedMotion.matches && !scanTarget && now >= nextScan) {
           // DOM geometry is read only when selecting a target or after scrolling/resizing.
           measure();
           const nearest = candidates.reduce<ScanTarget | undefined>((best, candidate) =>
@@ -171,7 +167,8 @@ export default function RoboticBug() {
         }
       }
       const pixelsPerUnit = size / 5.8;
-      const steering = walk(state, target, bounds, stopped, dt, 1.5 * pixelsPerUnit);
+      const patrolSpeed = reducedMotion.matches ? 0.65 : 1.5;
+      const steering = walk(state, target, bounds, stopped, dt, patrolSpeed * pixelsPerUnit);
       position();
       const renderStart = performance.now();
       scene.render(dt, now, state.speed / pixelsPerUnit, state.heading, steering.diff, steering.turn);
@@ -202,13 +199,14 @@ export default function RoboticBug() {
     }
     function onLayout() {
       onScroll();
-      if (reducedMotion.matches) startLoop();
+
     }
     function onMotionChange() {
       stopLoop();
       stopScan();
       pointer = undefined;
       dirty = true;
+      frameInterval = preferredFrameInterval();
       startLoop();
     }
     function onVisibility() {
