@@ -45,7 +45,6 @@ export default function RoboticBug() {
     const state = { position: { x: bounds.right, y: bounds.top + 80 }, heading: -1, speed: 0 };
     let target = { ...state.position };
     let pointer: Point | undefined;
-    let pointerAt = -100;
     let retargetAt = 0;
     let nextScan = 8;
     let scanTarget: ScanTarget | undefined;
@@ -104,8 +103,8 @@ export default function RoboticBug() {
     }
     function startLoop() {
       if (disposed || !scene || contextLost || frame || document.hidden) return;
-      // Keep the mascot walking; reduced motion uses a slower patrol without
-      // pointer chasing or scan effects instead of freezing the first frame.
+      // Reduced motion keeps slower movement and disables scan effects,
+      // while mouse input still takes priority over autonomous patrol.
       overlay!.dataset.motion = reducedMotion.matches ? "reduced" : "running";
       frame = window.requestAnimationFrame(tick);
     }
@@ -120,13 +119,13 @@ export default function RoboticBug() {
       last = timestamp;
       now += dt;
       if (dirty) measure();
-      const chasing = pointer !== undefined && now - pointerAt < 2.5;
+      const chasing = pointer !== undefined;
       let stopped = false;
 
       if (chasing) {
         if (scanTarget) stopScan();
         target = contain(pointer!, bounds);
-        stopped = distance(state.position, target) < size * 0.35;
+        stopped = distance(state.position, target) < size * 0.2;
         overlay!.dataset.mode = stopped ? "locked" : "following";
       } else {
         if (!reducedMotion.matches && !scanTarget && now >= nextScan) {
@@ -167,8 +166,10 @@ export default function RoboticBug() {
         }
       }
       const pixelsPerUnit = size / 5.8;
-      const patrolSpeed = reducedMotion.matches ? 0.65 : 1.5;
-      const steering = walk(state, target, bounds, stopped, dt, patrolSpeed * pixelsPerUnit);
+      const movementSpeed = chasing
+        ? (reducedMotion.matches ? 3 : 5)
+        : (reducedMotion.matches ? 1.5 : 3);
+      const steering = walk(state, target, bounds, stopped, dt, movementSpeed * pixelsPerUnit);
       position();
       const renderStart = performance.now();
       scene.render(dt, now, state.speed / pixelsPerUnit, state.heading, steering.diff, steering.turn);
@@ -187,32 +188,37 @@ export default function RoboticBug() {
       startLoop();
     }
     function onPointer(event: PointerEvent) {
-      // Touch and pen scrolling never become follow targets.
-      if (event.pointerType !== "mouse" || coarse.matches || reducedMotion.matches) return;
-      pointer = contain({ x: event.clientX, y: event.clientY }, bounds);
-      pointerAt = now;
+      // Inspect the event, not the primary-device media query: a touchscreen
+      // laptop can also have a mouse. Touch/pen gestures never become targets.
+      if (event.pointerType !== "mouse") return;
+      pointer = { x: event.clientX, y: event.clientY };
+    }
+    function releasePointer() {
+      if (!pointer) return;
+      pointer = undefined;
+      stopScan();
+      patrol();
+    }
+    function onPointerOut(event: PointerEvent) {
+      if (event.pointerType === "mouse" && event.relatedTarget === null) releasePointer();
     }
     function onScroll() {
       dirty = true;
-      pointerAt = -100;
       if (scanTarget) { stopScan(); patrol(); }
     }
     function onLayout() {
       onScroll();
-
     }
     function onMotionChange() {
       stopLoop();
       stopScan();
-      pointer = undefined;
       dirty = true;
       frameInterval = preferredFrameInterval();
       startLoop();
     }
     function onVisibility() {
-      if (document.hidden) { stopLoop(); scan!.hidden = true; }
+      if (document.hidden) { releasePointer(); stopLoop(); scan!.hidden = true; }
       else {
-        pointerAt = -100;
         stopScan();
         dirty = true;
         if (!scene) schedule();
@@ -264,6 +270,8 @@ export default function RoboticBug() {
     }
 
     window.addEventListener("pointermove", onPointer, { passive: true });
+    window.addEventListener("pointerout", onPointerOut, { passive: true });
+    window.addEventListener("blur", releasePointer);
     window.addEventListener("resize", onLayout, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     window.visualViewport?.addEventListener("resize", onLayout, { passive: true });
@@ -276,6 +284,8 @@ export default function RoboticBug() {
       if (idle !== undefined) window.cancelIdleCallback(idle);
       if (timer !== undefined) clearTimeout(timer);
       window.removeEventListener("pointermove", onPointer);
+      window.removeEventListener("pointerout", onPointerOut);
+      window.removeEventListener("blur", releasePointer);
       window.removeEventListener("resize", onLayout);
       window.removeEventListener("scroll", onScroll);
       window.visualViewport?.removeEventListener("resize", onLayout);
