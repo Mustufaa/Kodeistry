@@ -77,6 +77,7 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
   const Component = evaluate("RoboticBug.tsx", {
     react: React, "react/jsx-runtime": { jsx, jsxs: jsx },
     "./robot-scene": scene, "./robot-journey": motion,
+    "./static-robotic-bug": { RoboticBugIcon: () => null },
     "./robotic-bug.module.css": { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) },
   }, { window, document, navigator: { hardwareConcurrency: 8, deviceMemory: constrained ? 1 : 8 },
     performance: { now: () => clock }, Math: math,
@@ -210,10 +211,11 @@ test("Reduced motion prevents rendering and reacts to live preference changes", 
   app.assertClean();
 });
 
-test("WebGL failure degrades gracefully", () => {
+test("WebGL failure selects the visible static fallback", () => {
   const app = harness({ failWebGL: true }); app.advance();
   assert.equal(app.robot.children.length, 0);
   assert.equal(app.frames.size, 0); assert.equal(app.stats.created, 0);
+  assert.equal(app.overlay.dataset.renderer, "unavailable");
   app.assertClean();
 });
 
@@ -337,3 +339,43 @@ test("Landscape touch devices use the small mobile canvas and keep moving throug
   app.assertClean();
 });
 
+
+test("loader keeps a visible static bug pending, loading and under reduced motion", () => {
+  const jsx = (type, props) => ({ type, props });
+  const styles = { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) };
+  const fallback = evaluate("static-robotic-bug.tsx", {
+    "react/jsx-runtime": { jsx, jsxs: jsx }, "./robotic-bug.module.css": styles,
+  });
+  const media = { ...events(), matches: true }, idle = new Map();
+  let motion = "pending", effect, loading;
+  const Animated = () => null;
+  const { RoboticBugLoader } = evaluate("robotic-bug-loader.tsx", {
+    react: { useState: () => [motion, value => { motion = value; }], useEffect: fn => { effect = fn; } },
+    "react/jsx-runtime": { jsx, jsxs: jsx },
+    "next/dynamic": { __esModule: true, default: (_load, options) => { loading = options.loading; return Animated; } },
+    "./static-robotic-bug": fallback,
+  }, {
+    window: { matchMedia: () => media, requestIdleCallback: fn => { idle.set(1, fn); return 1; }, cancelIdleCallback: key => idle.delete(key) },
+    setTimeout, clearTimeout,
+  });
+  function assertStatic(tree) {
+    assert.equal(tree.type, fallback.StaticRoboticBug);
+    const dom = tree.type(tree.props);
+    assert.equal(dom.props["data-renderer"], "static");
+    assert.notEqual(dom.props.children.props.hidden, true);
+    assert.equal(fallback.RoboticBugIcon().type, "svg");
+  }
+  assertStatic(RoboticBugLoader());
+  assertStatic(loading());
+  const cleanup = effect();
+  idle.get(1)(); idle.clear();
+  assert.equal(motion, "reduced");
+  assertStatic(RoboticBugLoader());
+  media.matches = false; media.dispatch("change");
+  assert.equal(RoboticBugLoader().type, Animated);
+  media.matches = true; media.dispatch("change");
+  assertStatic(RoboticBugLoader());
+  cleanup();
+  assert.equal(media.count(), 0);
+  assert.equal(idle.size, 0);
+});

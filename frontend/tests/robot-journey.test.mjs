@@ -64,7 +64,7 @@ test("moving cursor cannot extend touring indefinitely; 90s with orientation cha
 test("cursor follow closes distance before the finite exit phase", () => {
   const j = new RobotJourney(viewport(1280,800));
   while(j.phase==="entering") j.advance(1/120);
-  const pointer={x:900,y:450}, before=Math.hypot(j.position.x-pointer.x,j.position.y-pointer.y);
+  const pointer={x:240,y:450}, before=Math.hypot(j.position.x-pointer.x,j.position.y-pointer.y);
   for(let i=0;i<240;i++) j.advance(1/120,pointer);
   assert.ok(Math.hypot(j.position.x-pointer.x,j.position.y-pointer.y)<before-150);
 });
@@ -78,4 +78,17 @@ test("waiting lasts three seconds and resumes from the same offscreen edge", () 
   j.advance(.02);
   assert.equal(j.phase,"entering");
   assert.ok(Math.hypot(j.position.x-start.x,j.position.y-start.y)<2);
+});
+
+test("the first canvas starts visibly inside the viewport", () => {
+  for (const width of widths) {
+    const view = viewport(width);
+    const j = new RobotJourney(view);
+    assert.equal(j.phase, "touring");
+    assert.ok(!j.fullyOutside);
+    assert.ok(j.position.x - view.size / 2 >= 0);
+    assert.ok(j.position.x + view.size / 2 <= view.width);
+    assert.ok(j.position.y - view.size / 2 >= 0);
+    assert.ok(j.position.y + view.size / 2 <= view.height);
+  }
 });

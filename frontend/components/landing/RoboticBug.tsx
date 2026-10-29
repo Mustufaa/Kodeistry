@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { createRobotScene } from "./robot-scene";
 import { RobotJourney, PAUSE, type Point } from "./robot-journey";
 import styles from "./robotic-bug.module.css";
+import { RoboticBugIcon } from "./static-robotic-bug";
 
 export default function RoboticBug() {
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -142,9 +143,17 @@ export default function RoboticBug() {
         canvas.addEventListener("webglcontextlost", onContextLost);
         canvas.addEventListener("webglcontextrestored", onContextRestored);
         measure();
+        paint();
+        // Keep the static fallback until an actual canvas frame is ready.
+        scene.render(0, now, 0, journey!.heading, 0, 0);
         overlay!.dataset.renderer = "webgl";
         start();
       } catch {
+        canvas.removeEventListener("webglcontextlost", onContextLost);
+        canvas.removeEventListener("webglcontextrestored", onContextRestored);
+        scene?.dispose();
+        scene = undefined;
+        robot!.style.visibility = "hidden";
         canvas.remove();
         overlay!.dataset.renderer = "unavailable";
       }
@@ -195,6 +204,7 @@ export default function RoboticBug() {
   }, []);
   return (
     <div ref={overlayRef} className={styles.overlay} aria-hidden="true" data-robotic-bug data-renderer="pending">
+      <div className={styles.rendererFallback} data-bug-fallback><RoboticBugIcon /></div>
       <div ref={robotRef} className={styles.robot} data-bug-body>
         <div ref={scanRef} className={styles.scan} hidden><b ref={labelRef}>SCANNING CODE...</b><small>Decorative demo</small></div>
       </div>

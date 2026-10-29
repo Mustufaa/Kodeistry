@@ -24,11 +24,13 @@ export class RobotJourney {
   private consumedPointer?: Point;
   private waypoint = 0;
   private side = 1;
+  private tangent = Math.PI / 2;
 
   constructor(viewport: Viewport) {
     this.viewport = viewport;
-    this.position = this.outside(false);
-    this.begin("entering", this.entry());
+    // Only later cycles enter from off-screen; show the first robot immediately.
+    this.position = this.safe({ x: viewport.width * 0.72, y: viewport.height * 0.46 });
+    this.begin("touring", this.nextTarget());
   }
   private safe(point: Point): Point {
     const { width, height, size, header } = this.viewport;
@@ -59,7 +61,7 @@ export class RobotJourney {
     // A tangent-continuous cubic, sampled by arc length, avoids frame-rate
     // dependent steering circles and never clamps an exit back on screen.
     const reach = Math.min(length * 0.32, 110);
-    const c1 = { x: start.x + Math.sin(this.heading) * reach, y: start.y + Math.cos(this.heading) * reach };
+    const c1 = { x: start.x + Math.sin(this.tangent) * reach, y: start.y + Math.cos(this.tangent) * reach };
     const c2 = { x: target.x - (target.x - start.x) * 0.23, y: target.y - (target.y - start.y) * 0.23 };
     const points: Point[] = [start];
     const lengths = [0];
@@ -101,6 +103,7 @@ export class RobotJourney {
           this.side *= -1;
           this.position = this.outside(false);
           this.heading = this.side * Math.PI / 2;
+          this.tangent = this.heading;
           this.tourDistance = 0;
           this.consumedPointer = undefined;
           this.begin("entering", this.entry());
@@ -132,6 +135,7 @@ export class RobotJourney {
       const t = (leg.travelled - leg.lengths[index - 1]) / Math.max(0.000001, leg.lengths[index] - leg.lengths[index - 1]);
       this.position = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
       const desired = Math.atan2(b.x - a.x, b.y - a.y);
+      this.tangent = desired;
       const diff = Math.atan2(Math.sin(desired - this.heading), Math.cos(desired - this.heading));
       this.heading += diff * (1 - Math.exp(-12 * step));
       if (leg.travelled >= leg.length - 0.000001) {

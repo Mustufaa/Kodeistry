@@ -16,7 +16,7 @@ Source, component lifecycle simulations, production compilation, backend regress
 | Bug never fully leaves the screen | Every position and destination was clamped inside viewport bounds | Explicit exit leg ends beyond half the actual canvas size plus 24px; waiting begins only after completing that leg |
 | Speed varies with device size | Previous speed was multiplied by the canvas/world scale | Movement uses CSS pixels per second, independent of canvas size; model leg animation receives the corresponding world speed |
 | Edge steering can keep circling | Heading integration and containment compete near a boundary | Tangent-continuous cubic paths sampled by arc length have monotonic travel progress |
-| Motion preference still animated the robot | Previous reduced-motion behavior only slowed it | Reduced motion omits the floating decoration, does not request its lazy Three.js chunk, and stops/disposes a running scene when changed |
+| Motion preference still animated the robot | Previous reduced-motion behavior only slowed it | Reduced motion shows a static SVG bug, does not request its lazy Three.js chunk, and stops/disposes a running scene when changed |
 | Dashboard mobile drawer lacked modality | Overlay div had no native focus containment or background scroll lock | Shared native dialog frame provides Escape, focus containment/restoration, backdrop close, and reference-counted scroll locking |
 | Short dashboard sidebar can overflow | Navigation had no shrinking/scrollable region | Navigation scrolls independently with fixed header/footer; mobile drawer closes at desktop breakpoint |
 | Public menu lacked hamburger and keyboard handling | Plain details dropdown had limited dismissal/focus behavior | Accessible hamburger opens a scrollable native dialog with labeled navigation links |
@@ -80,8 +80,8 @@ Kody remains a nonmodal assistant panel; it does not lock the entire desktop app
 | TypeScript: npm run typecheck | Passed |
 | Lint: npm run lint | Passed with 0 errors and 5 pre-existing warnings |
 | Production build: npm run build | Passed; 41 static outputs generated and dynamic detail routes compiled |
-| Frontend: npm test | **74 passed**, 0 failed |
-| Motion controller: npm run test:motion | **52 passed**, included in the 74 total |
+| Frontend: npm test | **76 passed**, 0 failed |
+| Motion controller: npm run test:motion | **53 passed**, included in the 76 total |
 | Backend: in-memory SQLite pytest | **94 passed, 7 skipped** |
 | Production HTTP/SEO checker | **Passed: 9 public pages, 28 private routes, 12 internal targets** |
 | Playwright discovery | **301 test cases in 2 files**, across 7 projects; listing succeeded |
@@ -168,3 +168,14 @@ Remaining work before claiming full cross-device completion: execute the Playwri
 - `frontend/tests/e2e/responsive.spec.ts`
 - `frontend/tests/robot-journey.test.mjs`
 - `frontend/tests/robotic-bug.test.mjs`
+
+## Visibility follow-up
+
+The first version hid the robot entirely for reduced-motion users and used an empty placeholder during loading. The first animated journey also started outside the viewport. The visibility correction now:
+
+- Shows a lightweight SVG bug immediately during loading and under reduced motion.
+- Starts the first animated journey inside the viewport; later cycles still exit and re-enter.
+- Keeps the fallback until the first WebGL frame renders, and shows it if WebGL fails or loses its context.
+- Uses the path tangent independently of the smoothed visual heading, retaining consistent movement across refresh rates.
+
+The original animated 3D model and cursor tracking remain in normal motion mode. The fallback is static and requires no WebGL. Frontend regression results after this correction: 76 passed; TypeScript and targeted lint passed. Real browser verification remains unavailable.

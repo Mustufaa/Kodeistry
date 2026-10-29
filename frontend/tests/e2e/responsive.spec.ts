@@ -114,9 +114,11 @@ test("reduced motion disables continuous bug movement and reacts live",async({pa
   await page.goto("/");
   const overlay=page.locator("[data-robotic-bug]");
   await expect(overlay).toHaveAttribute("data-motion","reduced");
-  await expect(page.locator("[data-bug-body]")).toBeHidden();
+  await expect(overlay).toHaveAttribute("data-renderer","static");
+  await expect(page.locator("[data-bug-body] svg")).toBeVisible();
   await page.emulateMedia({reducedMotion:"no-preference"});
   await expect(overlay).toHaveAttribute("data-renderer","webgl",{timeout:20000});
   await page.emulateMedia({reducedMotion:"reduce"});
-  await expect(page.locator("[data-bug-body]")).toBeHidden();
+  await expect(overlay).toHaveAttribute("data-renderer","static");
+  await expect(page.locator("[data-bug-body] svg")).toBeVisible();
 });

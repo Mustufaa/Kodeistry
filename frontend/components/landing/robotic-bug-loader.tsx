@@ -2,9 +2,10 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { StaticRoboticBug } from "./static-robotic-bug";
 
 // The Three.js chunk is requested only after idle and only when motion is allowed.
-const RoboticBug = dynamic(() => import("./RoboticBug"), { ssr: false });
+const RoboticBug = dynamic(() => import("./RoboticBug"), { ssr: false, loading: () => <StaticRoboticBug /> });
 export function RoboticBugLoader() {
   const [motion, setMotion] = useState<"pending" | "reduced" | "ready">("pending");
   useEffect(() => {
@@ -22,5 +23,5 @@ export function RoboticBugLoader() {
     };
   }, []);
   return motion === "ready" ? <RoboticBug /> :
-    <div aria-hidden="true" data-robotic-bug data-motion={motion}><div data-bug-body hidden /></div>;
+    <StaticRoboticBug motion={motion} />;
 }
