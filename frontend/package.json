@@ -6,11 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "typecheck": "tsc --noEmit --incremental false",
-    "test:motion": "node --test tests/robot-journey.test.mjs",
-    "test:e2e": "playwright test",
-    "test": "node --test tests/*.test.mjs"
+    "lint": "eslint"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -31,7 +27,6 @@
     "zod": "^4.6.6"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

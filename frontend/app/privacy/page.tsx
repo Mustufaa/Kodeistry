@@ -1,8 +1,11 @@
-import { publicMetadata } from "@/lib/seo";
+import type { Metadata } from "next";
 
 import { LegalPage } from "@/components/legal/legal-page";
 
-export const metadata = publicMetadata("/privacy", "Privacy Policy", "Learn how Kodeistry collects, uses, and protects your information.");
+export const metadata: Metadata = {
+  title: "Privacy Policy | Kodeistry",
+  description: "Learn how Kodeistry collects, uses, and protects your information.",
+};
 
 const sections = [
   {

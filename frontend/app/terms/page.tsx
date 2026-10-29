@@ -1,9 +1,12 @@
-import { publicMetadata } from "@/lib/seo";
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LegalPage } from "@/components/legal/legal-page";
 
-export const metadata = publicMetadata("/terms", "Terms & Conditions", "Terms and conditions governing use of the Kodeistry service.");
+export const metadata: Metadata = {
+  title: "Terms & Conditions | Kodeistry",
+  description: "Terms and conditions governing use of the Kodeistry service.",
+};
 
 const sections = [
   {

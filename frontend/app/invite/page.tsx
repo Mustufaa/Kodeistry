@@ -65,9 +65,8 @@ export default function InvitationPage() {
   }
 
   return <main className="flex min-h-screen items-center justify-center bg-background px-5 py-12">
-    <div className="min-w-0 w-full max-w-md space-y-6 [overflow-wrap:anywhere] rounded-2xl border bg-card p-6 shadow-xl sm:p-9">
+    <div className="w-full max-w-md space-y-6 rounded-2xl border bg-card p-6 shadow-xl sm:p-9">
       <BrandLogo />
-      {!preview ? <h1 className="text-2xl font-semibold">Team invitation</h1> : null}
       {loading ? <p role="status" className="text-sm text-muted-foreground">Loading invitation...</p> : null}
       {preview ? <>
         <div><h1 className="text-2xl font-semibold">Join {preview.team_name}</h1>

@@ -346,6 +346,3 @@
   .heroActions { margin-top: 18px; gap: 12px; }
   .heroPreviewTrack { padding: 8px; }
 }
-
-/* Preserve the skip link above the decorative overlay and interactive links. */
-.landing :global(.skip-link) { position: fixed; z-index: 100; }

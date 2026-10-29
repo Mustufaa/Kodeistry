@@ -7,9 +7,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ARG NEXT_PUBLIC_API_URL
-ARG SITE_URL=https://kodeistry.onrender.com
-ARG GOOGLE_SITE_VERIFICATION
-ARG BING_SITE_VERIFICATION
 RUN test -n "$NEXT_PUBLIC_API_URL" && npm run build
 FROM node:24-bookworm-slim AS runner
 WORKDIR /app

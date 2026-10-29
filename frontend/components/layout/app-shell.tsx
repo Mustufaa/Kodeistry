@@ -29,7 +29,6 @@ import { useCurrentTenant } from "@/hooks/use-current-tenant";
 import { logout } from "@/lib/api/auth";
 import { RepositoryAccessGate } from "@/components/layout/repository-access-gate";
 import { cn } from "@/lib/utils";
-import { DialogFrame } from "@/components/ui/dialog-frame";
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -57,14 +56,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      try { setCollapsed(window.localStorage.getItem("kodeistry_sidebar_collapsed") === "true"); } catch { /* Optional preference; blocked storage keeps the default. */ }
+      setCollapsed(window.localStorage.getItem("kodeistry_sidebar_collapsed") === "true");
     });
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
   function toggleCollapsed() {
     setCollapsed((value) => {
-      try { window.localStorage.setItem("kodeistry_sidebar_collapsed", String(!value)); } catch { /* Keep the in-session setting usable. */ }
+      window.localStorage.setItem("kodeistry_sidebar_collapsed", String(!value));
       return !value;
     });
   }
@@ -88,8 +87,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const currentLabel = navItems.find((item) => isActive(pathname, item.href))?.label ?? "Settings";
 
   const sidebar = (mobile = false) => (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className={cn("flex h-16 shrink-0 items-center border-b px-4", collapsed && !mobile ? "justify-center px-2" : "justify-between")}>
+    <div className="flex h-full flex-col">
+      <div className={cn("flex h-16 items-center border-b px-4", collapsed && !mobile ? "justify-center px-2" : "justify-between")}>
         {collapsed && !mobile ? <BrandLogo compact /> : <BrandLogo />}
         {mobile ? (
           <Button variant="ghost" size="icon" aria-label="Close navigation" onClick={() => setMobileOpen(false)}>
@@ -98,7 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ) : null}
       </div>
 
-      <nav aria-label="Primary navigation" className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-3">
+      <nav aria-label="Primary navigation" className="flex-1 space-y-1 px-3 py-5">
         {!collapsed || mobile ? <p className="mb-2 px-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/70">Product</p> : null}
         {navItems.filter((item) => canManage || !["/team", "/settings/integrations/github"].includes(item.href)).map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href);
@@ -111,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-current={active ? "page" : undefined}
               onClick={() => mobile && setMobileOpen(false)}
               className={cn(
-                "group relative flex min-h-11 items-center rounded-lg text-sm font-medium transition-colors",
+                "group relative flex h-10 items-center rounded-lg text-sm font-medium transition-colors",
                 collapsed && !mobile ? "justify-center px-0" : "gap-3 px-3",
                 active ? "bg-violet-500/10 text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
@@ -133,17 +132,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         })}
       </nav>
 
-      <div className="shrink-0 border-t p-3">
+      <div className="border-t p-3">
         <div className={cn("mb-2 flex items-center", collapsed && !mobile ? "justify-center" : "justify-between px-1")}>
           {!collapsed || mobile ? <span className="text-xs text-muted-foreground">Theme</span> : null}
           <ThemeToggle />
         </div>
         <Link
           href="/settings"
-          onClick={() => mobile && setMobileOpen(false)}
-          aria-label="Settings"
           title={collapsed && !mobile ? "Settings" : undefined}
-          className={cn("flex min-h-11 items-center rounded-lg text-sm text-muted-foreground hover:bg-accent hover:text-foreground", collapsed && !mobile ? "justify-center" : "gap-3 px-3")}
+          className={cn("flex h-10 items-center rounded-lg text-sm text-muted-foreground hover:bg-accent hover:text-foreground", collapsed && !mobile ? "justify-center" : "gap-3 px-3")}
         >
           <Settings className="size-[17px]" />
           {!collapsed || mobile ? "Settings" : null}
@@ -156,7 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="truncate text-xs font-medium">{user?.full_name || user?.github_login || "Kodeistry user"}</p>
                 <p className="truncate text-[11px] text-muted-foreground">{user?.email || "Signed in"}</p>
               </div>
-              <button type="button" onClick={handleLogout} className="touch-target rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Sign out">
+              <button type="button" onClick={handleLogout} className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Sign out">
                 <LogOut className="size-4" />
               </button>
             </>
@@ -181,14 +178,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {mobileOpen ? (
-        <DialogFrame label="Primary navigation" onClose={() => setMobileOpen(false)} closeAt="(min-width: 1024px)"
-          className="inset-y-0 left-0 ml-0 mr-auto h-full w-[min(90vw,288px)] max-w-none border-r bg-sidebar p-0">{sidebar(true)}</DialogFrame>
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button className="absolute inset-0 bg-black/65 backdrop-blur-sm" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />
+          <aside className="relative h-full w-[min(86vw,288px)] border-r bg-sidebar shadow-2xl">{sidebar(true)}</aside>
+        </div>
       ) : null}
 
-      <div className={cn("min-h-screen min-w-0 transition-[padding] duration-200", collapsed ? "lg:pl-[72px]" : "lg:pl-64")}>
+      <div className={cn("min-h-screen transition-[padding] duration-200", collapsed ? "lg:pl-[72px]" : "lg:pl-64")}>
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/85 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}>
+            <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>
               <Menu className="size-5" />
             </Button>
             <KodeistryLogo className="size-8 lg:hidden" />
@@ -199,12 +198,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-            {tenants.length > 1 ? <label className="min-w-0"><span className="sr-only">Active team</span><select aria-label="Active team" value={tenantId ?? ""} disabled={isSwitching} onChange={(event) => setTenantId(Number(event.target.value))} className="h-11 min-w-0 max-w-[40vw] rounded-lg border bg-background px-2 text-sm sm:max-w-64">{tenants.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label> : null}
-            {switchError ? <span className="max-w-36 text-xs" role="alert">Could not switch team. Try again.</span> : null}
-            <span className="hidden shrink-0 items-center gap-2 xl:flex"><Sparkles className="size-3.5 text-violet-600 dark:text-violet-400" />AI code review</span>
+            {tenants.length > 1 ? <label className="min-w-0"><span className="sr-only">Active team</span><select aria-label="Active team" value={tenantId ?? ""} disabled={isSwitching} onChange={(event) => setTenantId(Number(event.target.value))} className="h-9 max-w-[40vw] rounded-lg border bg-background px-2 text-sm sm:max-w-64">{tenants.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label> : null}
+            {switchError ? <span role="alert">Could not switch team. Try again.</span> : null}
+            <Sparkles className="size-3.5 text-violet-600 dark:text-violet-400" />
+            AI code review
           </div>
         </header>
-        <main className="dashboard-content mx-auto min-w-0 w-full max-w-[1480px] p-4 sm:p-6 lg:p-8">{isSwitching ? <p role="status">Switching team...</p> : <RepositoryAccessGate>{children}</RepositoryAccessGate>}</main>
+        <main className="mx-auto w-full max-w-[1480px] p-4 sm:p-6 lg:p-8">{isSwitching ? <p role="status">Switching team...</p> : <RepositoryAccessGate>{children}</RepositoryAccessGate>}</main>
       </div>
     </div>
   );

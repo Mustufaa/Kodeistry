@@ -2,7 +2,6 @@
   position: fixed;
   inset: 0;
   z-index: 20;
-  overflow: hidden;
   overflow: clip;
   pointer-events: none;
   user-select: none;
@@ -12,8 +11,8 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 260px;
-  height: 260px;
+  width: 300px;
+  height: 300px;
   visibility: hidden;
   will-change: transform;
 }
@@ -56,24 +55,4 @@
   box-shadow: 0 0 9px #ff6262;
 }
 @keyframes sweep { to { transform: translateY(-18px); opacity: .2; } }
-@media (max-width: 640px) { .robot { width: 150px; height: 150px; } .scan { bottom: -5px; } }
-
-@media (prefers-reduced-motion: reduce) {
-  .scan::before { animation: none; }
-  .robot { visibility: hidden !important; will-change: auto; }
-}
-
-/* Present from the first render, including reduced motion and missing WebGL. */
-.staticRobot, .rendererFallback {
-  position: absolute;
-  right: clamp(12px, 6vw, 96px);
-  top: clamp(96px, 24vh, 230px);
-  width: min(260px, 48vw, 48vh);
-  aspect-ratio: 1;
-  pointer-events: none;
-}
-.fallbackIcon { display: block; width: 100%; height: 100%; }
-.overlay[data-renderer="webgl"] .rendererFallback { display: none; }
-@media (max-width: 640px), (pointer: coarse) {
-  .staticRobot, .rendererFallback { width: min(150px, 42vw, 42vh); }
-}
+@media (max-width: 640px) { .robot { width: 210px; height: 210px; } .scan { bottom: -5px; } }

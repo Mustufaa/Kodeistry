@@ -1,7 +1,4 @@
-﻿import { privateMetadata } from "@/lib/seo";
-export const metadata = privateMetadata("Dashboard");
-
-import { AuthGuard } from "@/components/auth/auth-guard";
+﻿import { AuthGuard } from "@/components/auth/auth-guard";
 import { AppShell } from "@/components/layout/app-shell";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

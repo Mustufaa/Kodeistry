@@ -9,8 +9,8 @@ import { getTenants } from "@/lib/api/tenants";
 
 export function useCurrentTenant() {
   const queryClient = useQueryClient();
-  const tenantsQuery = useQuery({ queryKey: ["tenants"], queryFn: getTenants, staleTime: 30_000 });
-  const userQuery = useQuery({ queryKey: ["current-user"], queryFn: getCurrentUser, staleTime: 30_000 });
+  const tenantsQuery = useQuery({ queryKey: ["tenants"], queryFn: getTenants });
+  const userQuery = useQuery({ queryKey: ["current-user"], queryFn: getCurrentUser });
   const switchWorkspace = useMutation({
     mutationFn: selectOnboardingWorkspace,
     onSuccess: async () => {

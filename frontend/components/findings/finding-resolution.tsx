@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { DialogFrame } from "@/components/ui/dialog-frame";
+import { useEffect, useRef, useState } from "react";
 import { Clipboard, ExternalLink, RefreshCw, Sparkles, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -23,6 +22,7 @@ export function FindingResolution({ finding, compact = false }: { finding: Findi
   const [open, setOpen] = useState(false);
   const [triage, setTriage] = useState<TriageStatus | null>(null);
   const [reason, setReason] = useState("");
+  const panel = useRef<HTMLDivElement>(null);
   const suggestionQuery = useQuery({
     queryKey: ["fix-assistant", tenantId, finding.id],
     queryFn: () => getFixAssistant(tenantId!, finding.id),
@@ -57,6 +57,23 @@ export function FindingResolution({ finding, compact = false }: { finding: Findi
     onError: (error) => toast.error(error.message),
   });
 
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Tab" || !panel.current) return;
+      const elements = Array.from(panel.current.querySelectorAll<HTMLElement>("button:not([disabled]), textarea:not([disabled]), a[href]"));
+      if (!elements.length) return;
+      const first = elements[0], last = elements[elements.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    panel.current?.querySelector<HTMLElement>("button")?.focus();
+    return () => { document.removeEventListener("keydown", onKey); previous?.focus(); };
+  }, [open]);
+
   async function copyPrompt() {
     if (!suggestionQuery.data?.prompt) return;
     try { await navigator.clipboard.writeText(suggestionQuery.data.prompt); toast.success("Fix prompt copied"); }
@@ -74,13 +91,14 @@ export function FindingResolution({ finding, compact = false }: { finding: Findi
       {triageStatus !== "ACTIVE" ? <StatusBadge value={triageStatus} /> : null}
       <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Sparkles className="size-4" />Fix Assistant & tracking</Button>
     </div>
-    {open ? <DialogFrame label={`Finding #${finding.id}`} onClose={() => setOpen(false)} className="inset-y-0 right-0 ml-auto mr-0 h-full w-full max-w-2xl overflow-hidden p-0">
-      <div className="flex h-full min-h-0 flex-col">
-        <header className="flex shrink-0 items-start justify-between gap-4 border-b p-5">
+    {open ? <div className="fixed inset-0 z-[70]" role="presentation">
+      <button type="button" className="absolute inset-0 bg-black/70" aria-label="Close finding details" onClick={() => setOpen(false)} />
+      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="finding-dialog-title" className="absolute inset-y-0 right-0 flex w-full max-w-2xl flex-col border-l bg-card shadow-2xl">
+        <header className="flex items-start justify-between gap-4 border-b p-5">
           <div><h2 id="finding-dialog-title" className="text-lg font-semibold">Finding #{finding.id}</h2><p className="mt-1 break-all font-mono text-xs text-muted-foreground">{finding.filename}:{finding.line} · {shortSha(finding.commit_sha)}</p></div>
           <Button size="icon" variant="ghost" aria-label="Close" onClick={() => setOpen(false)}><X className="size-4" /></Button>
         </header>
-        <div className="min-h-0 min-w-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-5 text-sm [overflow-wrap:anywhere]">
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5 text-sm">
           <section className="space-y-2"><div className="flex flex-wrap gap-2"><StatusBadge value={finding.severity} /><StatusBadge value={verification} /><StatusBadge value={triageStatus} /></div><p className="leading-6">{finding.message}</p><p className="text-xs text-muted-foreground">Historical review finding at {finding.commit_sha}. Current verification is shown below.</p></section>
           <section className="space-y-3 border-t pt-5">
             <h3 className="font-semibold">Fix Assistant</h3>
@@ -111,6 +129,6 @@ export function FindingResolution({ finding, compact = false }: { finding: Findi
           {finding.github_url ? <a className="inline-flex items-center gap-2 text-sm text-primary underline" href={finding.github_url} target="_blank" rel="noreferrer"><ExternalLink className="size-4" />Open PR on GitHub</a> : null}
         </div>
       </div>
-    </DialogFrame> : null}
+    </div> : null}
   </div>;
 }
