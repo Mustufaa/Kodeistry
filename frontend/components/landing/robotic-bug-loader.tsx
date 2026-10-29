@@ -3,17 +3,24 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 
-// Keep the decorative Three.js chunk out of the initial hydration work.
+// The Three.js chunk is requested only after idle and only when motion is allowed.
 const RoboticBug = dynamic(() => import("./RoboticBug"), { ssr: false });
 export function RoboticBugLoader() {
-  const [ready, setReady] = useState(false);
+  const [motion, setMotion] = useState<"pending" | "reduced" | "ready">("pending");
   useEffect(() => {
-    if ("requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(() => setReady(true), { timeout: 2000 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const id = setTimeout(() => setReady(true), 500);
-    return () => clearTimeout(id);
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let idle: number | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const update = () => setMotion(media.matches ? "reduced" : "ready");
+    if ("requestIdleCallback" in window) idle = window.requestIdleCallback(update, { timeout: 2000 });
+    else timer = setTimeout(update, 500);
+    media.addEventListener("change", update);
+    return () => {
+      if (idle !== undefined) window.cancelIdleCallback(idle);
+      if (timer !== undefined) clearTimeout(timer);
+      media.removeEventListener("change", update);
+    };
   }, []);
-  return ready ? <RoboticBug /> : null;
+  return motion === "ready" ? <RoboticBug /> :
+    <div aria-hidden="true" data-robotic-bug data-motion={motion}><div data-bug-body hidden /></div>;
 }

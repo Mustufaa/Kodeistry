@@ -17,13 +17,13 @@ export function PublicPage({ path, title, summary, children }: { path: string; t
           <nav aria-label="Main navigation" className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
             <Link href="/how-it-works">How it works</Link><Link href="/docs">Docs</Link><Link href="/faq">FAQ</Link>
           </nav>
-          <div className="flex items-center gap-3"><ThemeToggle /><PublicNavigation /><Link href="/register" className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent">Get Started</Link></div>
+          <div className="flex items-center gap-3"><ThemeToggle /><PublicNavigation /><Link href="/register" className="touch-target inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent">Get Started</Link></div>
         </div>
       </header>
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
         <nav aria-label="Breadcrumb" className="mb-8 text-sm text-muted-foreground"><ol className="flex flex-wrap gap-2"><li><Link href="/" className="underline underline-offset-4">Home</Link></li><li aria-hidden="true">/</li><li aria-current="page">{title}</li></ol></nav>
         <article className="max-w-3xl">
-          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">{title}</h1>
+          <h1 className="break-words text-[clamp(1.875rem,5vw,3rem)] font-semibold tracking-tight">{title}</h1>
           <p className="mt-5 text-base leading-7 text-muted-foreground">{summary}</p>
           <div className="mt-10 space-y-10">{children}</div>
         </article>

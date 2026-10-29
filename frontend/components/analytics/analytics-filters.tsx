@@ -11,14 +11,14 @@ const periods: { value: Timeframe; label: string }[] = [
 ];
 
 export function TimeframePicker({ value, onChange }: { value: Timeframe; onChange: (value: Timeframe) => void }) {
-  return <div className="inline-flex rounded-lg border bg-card p-1" aria-label="Analytics timeframe">{periods.map((period) => (
-    <button key={period.value} type="button" onClick={() => onChange(period.value)} className={cn("rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors", value === period.value && "bg-muted text-foreground")}>{period.label}</button>
+  return <div className="inline-flex max-w-full flex-wrap rounded-lg border bg-card p-1" aria-label="Analytics timeframe">{periods.map((period) => (
+    <button key={period.value} type="button" aria-pressed={value === period.value} onClick={() => onChange(period.value)} className={cn("touch-target rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors", value === period.value && "bg-muted text-foreground")}>{period.label}</button>
   ))}</div>;
 }
 
 export function ReportFilters({ filters, repositories, onChange, allowCustom = true }: { filters: AnalyticsFilters; repositories: RepositoryItem[]; onChange: (filters: AnalyticsFilters) => void; allowCustom?: boolean }) {
   const { canManage } = useCurrentTenant();
-  const selectClass = "h-9 rounded-md border border-input bg-card px-2.5 text-xs outline-none focus:border-ring";
+  const selectClass = "touch-target h-9 min-w-0 max-w-full rounded-md border border-input bg-card px-2.5 text-xs outline-none focus:border-ring";
   return <div className="flex flex-wrap items-end gap-2">
     <select aria-label="Repository" value={filters.repository_id ?? ""} onChange={(event) => onChange({ ...filters, repository_id: event.target.value ? Number(event.target.value) : undefined })} className={selectClass}>
       <option value="">{canManage ? "All repositories" : "All assigned repositories"}</option>{repositories.map((repo) => <option key={repo.id} value={repo.id}>{repo.full_name}</option>)}

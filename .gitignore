@@ -79,3 +79,8 @@ pnpm-debug.log*
 *.dylib
 # Generated TypeScript state
 *.tsbuildinfo
+
+# Browser test output (may contain authenticated screenshots)
+frontend/test-results/
+frontend/playwright-report/
+frontend/.auth/

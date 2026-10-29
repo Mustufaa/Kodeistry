@@ -2,6 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 20;
+  overflow: hidden;
   overflow: clip;
   pointer-events: none;
   user-select: none;
@@ -11,8 +12,8 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 300px;
-  height: 300px;
+  width: 260px;
+  height: 260px;
   visibility: hidden;
   will-change: transform;
 }
@@ -55,9 +56,9 @@
   box-shadow: 0 0 9px #ff6262;
 }
 @keyframes sweep { to { transform: translateY(-18px); opacity: .2; } }
-@media (max-width: 640px) { .robot { width: 210px; height: 210px; } .scan { bottom: -5px; } }
+@media (max-width: 640px) { .robot { width: 150px; height: 150px; } .scan { bottom: -5px; } }
 
 @media (prefers-reduced-motion: reduce) {
   .scan::before { animation: none; }
-  .robot { will-change: auto; }
+  .robot { visibility: hidden !important; will-change: auto; }
 }

@@ -85,6 +85,7 @@ function KodyAssistantContent({ showGreeting }: { showGreeting: boolean }) {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const rootRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -97,7 +98,7 @@ function KodyAssistantContent({ showGreeting }: { showGreeting: boolean }) {
     if (!open) return;
     const frame = requestAnimationFrame(() => composerRef.current?.focus());
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && rootRef.current?.contains(event.target as Node)) {
         event.preventDefault();
         setOpen(false);
         requestAnimationFrame(() => launcherRef.current?.focus());
@@ -105,6 +106,36 @@ function KodyAssistantContent({ showGreeting }: { showGreeting: boolean }) {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => { cancelAnimationFrame(frame); document.removeEventListener("keydown", onKeyDown); };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const root = rootRef.current;
+    const viewport = window.visualViewport;
+    let frame = 0;
+    function measure() {
+      frame = 0;
+      if (!root) return;
+      const height = viewport?.height ?? window.innerHeight;
+      const bottom = Math.max(0, window.innerHeight - height - (viewport?.offsetTop ?? 0));
+      root.style.setProperty("--kody-height", height + "px");
+      root.style.setProperty("--kody-bottom", bottom + "px");
+      root.dataset.compact = String(height < 500);
+    }
+    function schedule() { if (!frame) frame = requestAnimationFrame(measure); }
+    measure();
+    viewport?.addEventListener("resize", schedule);
+    viewport?.addEventListener("scroll", schedule);
+    window.addEventListener("resize", schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      viewport?.removeEventListener("resize", schedule);
+      viewport?.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      root?.style.removeProperty("--kody-height");
+      root?.style.removeProperty("--kody-bottom");
+      if (root) delete root.dataset.compact;
+    };
   }, [open]);
 
   useEffect(() => () => requestRef.current?.abort(), []);
@@ -147,7 +178,7 @@ function KodyAssistantContent({ showGreeting }: { showGreeting: boolean }) {
   }
 
   function onComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       sendMessage(draft);
     }
@@ -170,8 +201,8 @@ function KodyAssistantContent({ showGreeting }: { showGreeting: boolean }) {
   }
 
   return (
-    <div className={styles.root}>
-      <aside id="kody-panel" className={styles.panel} data-open={open} role="dialog" aria-label="Kody assistant" aria-hidden={!open}>
+    <div ref={rootRef} className={styles.root} data-open={open}>
+      <aside id="kody-panel" className={styles.panel} data-open={open} role="dialog" aria-label="Kody assistant" aria-hidden={!open} inert={!open}>
         <header className={styles.header}>
           <span className={styles.avatar} aria-hidden="true"><KodyRobot /></span>
           <span className={styles.identity}><strong>Kody</strong><small>Your Kodeistry Assistant</small></span>
@@ -192,7 +223,7 @@ function KodyAssistantContent({ showGreeting }: { showGreeting: boolean }) {
           {messages.map((item) => <div key={item.id} className={item.role === "user" ? styles.userRow : styles.assistantRow}><div className={item.role === "user" ? styles.userBubble : styles.assistantBubble}><MessageText content={item.content} /></div></div>)}
           {messages.length === 1 && <div className={styles.suggestions} aria-label="Suggested questions">{QUESTIONS.map((question) => <button key={question} type="button" onClick={() => sendMessage(question)}>{question}</button>)}</div>}
           {pending && <p className={styles.loading} role="status"><span aria-hidden="true">... </span> Kody is thinking...</p>}
-          {error && <div className={styles.error} role="alert"><p>{error}</p><button type="button" onClick={() => { const retry = retryRef.current; if (retry) void requestAnswer(retry.message, retry.history); }}><RotateCcw size={13} /> Retry</button></div>}
+          {error && <div className={styles.error} role="alert"><p>{error}</p><button type="button" disabled={pending} onClick={() => { const retry = retryRef.current; if (retry) void requestAnswer(retry.message, retry.history); }}><RotateCcw size={13} /> Retry</button></div>}
         </div>
         <form className={styles.composer} onSubmit={submit}>
           <label className={styles.srOnly} htmlFor="kody-message">Message Kody</label>

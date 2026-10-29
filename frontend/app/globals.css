@@ -123,3 +123,19 @@ select {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
+
+/* Shared constraints preserve internal table scrolling instead of clipping the page. */
+.dashboard-content { padding-bottom: 104px; overflow-wrap: anywhere; }
+.dashboard-content :where(select, input, textarea) { min-width: 0; max-width: 100%; }
+.dashboard-content :where(.grid, .flex) > * { min-width: 0; }
+.dialog-frame { max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); }
+.dialog-frame[open] { animation: dialog-appear .16s ease-out; }
+@keyframes dialog-appear { from { opacity: 0; } to { opacity: 1; } }
+@media (pointer: coarse) {
+  .touch-target { min-height: 44px; min-width: 44px; }
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+  input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialog-frame[open] { animation: none; }
+}

@@ -29,7 +29,7 @@ function events() {
 }
 function harness({ width = 1280, reduced = false, coarse = false, failWebGL = false, constrained = false, slowGPU = false } = {}) {
   let clock = 0, id = 0, cleanup, effect;
-  const frames = new Map(), idle = new Map(), refs = [];
+  const frames = new Map(), idle = new Map(), timers = new Map(), refs = [];
   const stats = { created: 0, disposed: 0, rendered: 0, reducedQuality: 0, sizes: [], phases: new Set(), buttonCount: 0 };
   const media = { ...events(), matches: reduced };
   const window = {
@@ -73,13 +73,15 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
   };
   const math = Object.create(Math);
   math.random = () => 0.5;
-  const motion = evaluate("robot-motion.ts", {}, { Math: math });
+  const motion = evaluate("robot-journey.ts", {}, { Math: math });
   const Component = evaluate("RoboticBug.tsx", {
     react: React, "react/jsx-runtime": { jsx, jsxs: jsx },
-    "./robot-scene": scene, "./robot-motion": motion,
+    "./robot-scene": scene, "./robot-journey": motion,
     "./robotic-bug.module.css": { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) },
   }, { window, document, navigator: { hardwareConcurrency: 8, deviceMemory: constrained ? 1 : 8 },
-    performance: { now: () => clock }, Math: math, setTimeout, clearTimeout }).default;
+    performance: { now: () => clock }, Math: math,
+    setTimeout: (fn, delay) => { const key = ++id; timers.set(key, { fn, due: clock + delay }); return key; },
+    clearTimeout: key => timers.delete(key) }).default;
   const tree = Component();
   function visit(node) {
     if (Array.isArray(node)) return node.forEach(visit);
@@ -100,12 +102,13 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
   function flushIdle() { const callbacks = [...idle.values()]; idle.clear(); callbacks.forEach((fn) => fn()); }
   start();
   return {
-    stats, window, document, media, overlay, robot, scan, label, rect, frames, idle, start, flushIdle,
+    stats, window, document, media, overlay, robot, scan, label, rect, frames, idle, timers, start, flushIdle,
     cleanup: () => cleanup(),
     advance(seconds = 1) {
       flushIdle();
       for (let i = 0; i < seconds * 60; i++) {
         clock += 1000 / 60;
+        for (const [key, timer] of timers) { if (timer.due <= clock) { timers.delete(key); timer.fn(); } }
         const callbacks = [...frames.values()]; frames.clear();
         callbacks.forEach((fn) => fn(clock));
         if (!scan.hidden) stats.phases.add(label.textContent);
@@ -115,6 +118,7 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
       cleanup();
       assert.equal(frames.size, 0);
       assert.equal(idle.size, 0);
+      assert.equal(timers.size, 0);
       assert.equal(window.count() + document.count() + media.count(), 0);
       assert.equal(robot.children.length, 0);
       assert.equal(stats.created, stats.disposed);
@@ -132,106 +136,122 @@ test("Strict Mode cancels deferred initialization and route unmount releases the
   assert.equal(app.stats.disposed, 1);
   app.assertClean();
 });
-test("Patrol moves, follows a mouse, then resumes patrol after inactivity", () => {
-  const app = harness();
-  app.advance(1); const initial = app.robot.style.transform;
-  app.advance(2); assert.notEqual(app.robot.style.transform, initial);
-  app.window.dispatch("pointermove", { pointerType: "mouse", clientX: 180, clientY: 650 });
-  app.advance(0.2); assert.equal(app.overlay.dataset.mode, "following");
-  app.advance(3); assert.notEqual(app.overlay.dataset.mode, "following");
+test("Cursor following moves toward the pointer without preventing an eventual exit", () => {
+  const app = harness(); app.advance(6);
+  app.window.dispatch("pointermove", { pointerType: "mouse", clientX: 1000, clientY: 650 });
+  app.advance(.3);
+  assert.equal(app.overlay.dataset.mode, "following");
+  const before = app.robot.style.transform;
+  app.advance(1); assert.notEqual(app.robot.style.transform, before);
+  app.advance(60);
+  assert.ok(Number(app.overlay.dataset.cycles) >= 1);
+  app.window.dispatch("pointerout", { pointerType: "mouse", relatedTarget: null });
+  app.advance(.2); assert.notEqual(app.overlay.dataset.mode, "following");
   app.assertClean();
 });
-test("Decorative scan visits all three phases and scrolling cancels it", () => {
-  const app = harness();
-  app.advance(45);
-  assert.deepEqual([...app.stats.phases], ["SCANNING CODE...", "BUG DETECTED", "FIX SUGGESTED ✓"]);
-  app.window.dispatch("scroll"); assert.equal(app.scan.hidden, true);
-  const position = app.robot.style.transform;
-  app.advance(1); assert.notEqual(app.robot.style.transform, position);
+
+test("Short decorative pauses retain all three scan labels", () => {
+  const app = harness(); app.advance(60);
+  assert.deepEqual([...app.stats.phases], ["SCANNING CODE...", "BUG DETECTED", "FIX SUGGESTED"]);
   app.assertClean();
 });
+
 for (const width of [320, 390, 820, 1440]) {
-  test("Viewport containment and touch scrolling at width " + width, () => {
+  test("60s of actual frame callbacks exits, re-enters and resizes at width " + width, () => {
     const app = harness({ width, coarse: width < 640 });
     app.advance(1);
     app.window.dispatch("pointermove", { pointerType: "touch", clientX: 10, clientY: 10 });
-    app.advance(1);
-    assert.notEqual(app.overlay.dataset.mode, "following");
-    const size = width <= 640 ? 210 : 300;
+    const size = width <= 640 ? 150 : 260;
     assert.equal(app.stats.sizes.at(-1), size);
-    for (let i = 0; i < 60; i++) {
-      app.advance(1);
+    let exited = false, reentered = false;
+    for (let i = 0; i < 600; i++) {
+      app.advance(.1);
+      assert.notEqual(app.overlay.dataset.mode, "following");
       const [x, y] = app.robot.style.transform.match(/-?\d+\.\d+/g).map(Number);
-      assert.ok(x >= 0 && x + size <= width, "canvas stays horizontally contained");
-      assert.ok(y >= 0 && y + size <= 900, "canvas stays vertically contained");
+      assert.ok(Number.isFinite(x) && Number.isFinite(y));
+      if (app.overlay.dataset.phase === "waiting") {
+        assert.ok(x + size <= 0 || x >= width || y + size <= 0 || y >= 900);
+        assert.equal(app.frames.size, 0);
+        exited = true;
+      } else if (exited && app.overlay.dataset.phase === "entering") reentered = true;
     }
-    app.window.innerWidth = 320; app.window.dispatch("resize"); app.advance();
-    assert.equal(app.stats.sizes.at(-1), 210);
+    assert.ok(exited && reentered);
+    app.window.innerWidth = 320; app.window.dispatch("resize"); app.advance(4);
+    assert.equal(app.stats.sizes.at(-1), 150);
     app.assertClean();
   });
 }
-test("Hidden tab stops scheduling frames and resumes without a movement jump", () => {
+
+test("Hidden tab stops frames and timers; showing the tab resumes", () => {
   const app = harness(); app.advance();
   app.document.hidden = true; app.document.dispatch("visibilitychange");
   const rendered = app.stats.rendered, position = app.robot.style.transform;
   app.advance(10);
-  assert.equal(app.frames.size, 0); assert.equal(app.stats.rendered, rendered);
-  assert.equal(app.robot.style.transform, position);
+  assert.equal(app.frames.size, 0); assert.equal(app.timers.size, 0);
+  assert.equal(app.stats.rendered, rendered); assert.equal(app.robot.style.transform, position);
   app.document.hidden = false; app.document.dispatch("visibilitychange"); app.advance();
   assert.ok(app.stats.rendered > rendered);
   app.assertClean();
 });
-test("Robot automatically moves with reduced motion enabled and has no playback buttons", () => {
-  const app = harness({ reduced: true }); app.advance();
-  const initial = app.robot.style.transform;
+
+test("Reduced motion prevents rendering and reacts to live preference changes", () => {
+  const app = harness({ reduced: true }); app.advance(60);
   assert.equal(app.stats.buttonCount, 0);
-  app.advance(2);
-  assert.notEqual(app.robot.style.transform, initial);
-  assert.ok(app.frames.size > 0);
-  app.media.matches = false; app.media.dispatch("change"); app.advance();
+  assert.equal(app.stats.created, 0);
+  assert.equal(app.frames.size, 0);
+  assert.equal(app.robot.style.visibility, "hidden");
+  app.media.matches = false; app.media.dispatch("change"); app.advance(2);
+  assert.ok(app.stats.rendered > 0);
   app.media.matches = true; app.media.dispatch("change");
-  const rendered = app.stats.rendered; app.advance(2);
-  assert.ok(app.stats.rendered > rendered);
-  assert.equal(app.overlay.dataset.motion, "running");
+  const rendered = app.stats.rendered; app.advance(60);
+  assert.equal(app.stats.rendered, rendered);
+  assert.equal(app.overlay.dataset.motion, "reduced");
+  assert.equal(app.frames.size, 0); assert.equal(app.timers.size, 0);
   app.assertClean();
 });
+
 test("WebGL failure degrades gracefully", () => {
   const app = harness({ failWebGL: true }); app.advance();
   assert.equal(app.robot.children.length, 0);
-  assert.equal(app.frames.size, 0);
-  assert.equal(app.stats.created, 0);
+  assert.equal(app.frames.size, 0); assert.equal(app.stats.created, 0);
   app.assertClean();
 });
+
 test("Constrained devices keep animating at lower quality", () => {
   const app = harness({ constrained: true }); app.advance();
   const rendered = app.stats.rendered; app.advance(2);
   assert.ok(app.stats.rendered > rendered);
-  assert.ok(app.frames.size > 0);
   app.assertClean();
 });
-test("Slow GPUs lower quality while continuing to patrol and follow the mouse", () => {
-  const app = harness({ slowGPU: true }); app.advance(10);
-  assert.ok(app.frames.size > 0);
+
+test("Slow GPUs lower quality and complete cycles instead of freezing", () => {
+  const app = harness({ slowGPU: true }); app.advance(30);
   assert.ok(app.stats.reducedQuality > 0);
-  const position = app.robot.style.transform;
-  app.window.dispatch("pointermove", { pointerType: "mouse", clientX: 180, clientY: 650 });
-  app.advance(1);
-  assert.equal(app.overlay.dataset.mode, "following");
-  assert.notEqual(app.robot.style.transform, position);
+  assert.ok(Number(app.overlay.dataset.cycles) >= 1);
+  const rendered = app.stats.rendered; app.advance(10);
+  assert.ok(app.stats.rendered > rendered);
   app.assertClean();
 });
+
 test("Context loss stops animation until restoration", () => {
   const app = harness(); app.advance();
   const canvas = app.robot.children[0];
   canvas.dispatch("webglcontextlost", { preventDefault() {} });
-  app.advance();
-  assert.equal(app.frames.size, 0);
-  app.document.dispatch("visibilitychange"); app.advance();
-  assert.equal(app.frames.size, 0);
+  app.advance(); assert.equal(app.frames.size, 0);
+  app.document.dispatch("visibilitychange"); app.advance(); assert.equal(app.frames.size, 0);
   canvas.dispatch("webglcontextrestored"); app.advance();
   assert.ok(app.frames.size > 0);
   app.assertClean();
 });
+
+test("Unmount during the offscreen delay cancels the re-entry timer", () => {
+  const app = harness();
+  for(let i=0;i<600 && app.overlay.dataset.phase!=="waiting";i++) app.advance(.1);
+  assert.equal(app.overlay.dataset.phase,"waiting");
+  assert.equal(app.timers.size,1);
+  app.assertClean();
+});
+
 test("Original geometry keeps six IK legs, white/black armor, antennae, and alternating tripods", () => {
   const context = new Proxy({}, { get: () => () => ({ addColorStop() {} }), set: () => true });
   const { createRobotModel } = evaluate("robot-model.ts", { three: THREE }, {
@@ -306,11 +326,11 @@ test("Only the new robot is mounted by the landing page", () => {
   assert.match(page, /<RoboticBugLoader \/>/);
   assert.doesNotMatch(page + bento, /<SectionInsect|<CrawlingBug/);
 });
-test("Landscape touch devices use the larger mobile size and keep moving through scroll", () => {
-  const app = harness({ reduced: true, coarse: true, width: 844 });
+test("Landscape touch devices use the small mobile canvas and keep moving through scroll", () => {
+  const app = harness({ coarse: true, width: 844 });
   app.advance();
-  assert.equal(app.stats.sizes.at(-1), 210);
-  assert.equal(app.robot.style.width, "210px");
+  assert.equal(app.stats.sizes.at(-1), 150);
+  assert.equal(app.robot.style.width, "150px");
   const rendered = app.stats.rendered;
   app.window.dispatch("scroll"); app.advance();
   assert.ok(app.stats.rendered > rendered);

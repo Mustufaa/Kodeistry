@@ -51,7 +51,7 @@ export function LegalPage({ title, description, lastUpdated, sections }: LegalPa
           <article className="min-w-0">
             <div className="border-b pb-8">
               <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Legal</p>
-              <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">{title}</h1>
+              <h1 className="mt-3 break-words text-[clamp(1.875rem,5vw,3rem)] font-semibold tracking-tight">{title}</h1>
               <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground">{description}</p>
               <p className="mt-4 text-sm text-muted-foreground">Last updated: {lastUpdated}</p>
             </div>

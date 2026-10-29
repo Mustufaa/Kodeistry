@@ -1,21 +1,7 @@
 import Link from "next/link";
+import { MobileNavigation } from "./mobile-navigation";
 
-export function PublicNavigation() {
-  return (
-    <details className="relative md:hidden">
-      <summary className="cursor-pointer rounded-md border px-3 py-2 text-sm font-medium">Menu</summary>
-      <nav aria-label="Mobile navigation" className="absolute right-0 top-full z-50 mt-2 flex w-60 flex-col rounded-lg border bg-background p-2 shadow-lg">
-        {[
-          ["/features/ai-code-review", "AI code review"],
-          ["/features/github-integration", "GitHub integration"],
-          ["/features/security-analysis", "Security analysis"],
-          ["/how-it-works", "How it works"],
-          ["/docs", "Docs"], ["/faq", "FAQ"], ["/login", "Sign in"],
-        ].map(([href, label]) => <Link key={href} href={href} className="rounded-md px-3 py-3 text-sm hover:bg-accent">{label}</Link>)}
-      </nav>
-    </details>
-  );
-}
+export function PublicNavigation() { return <MobileNavigation />; }
 export function PublicLinks() {
   return (
     <nav aria-label="Product resources" className="flex flex-wrap gap-x-6 gap-y-3">

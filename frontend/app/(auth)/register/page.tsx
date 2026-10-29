@@ -87,7 +87,7 @@ export default function RegisterPage() {
             <label htmlFor="password">Password</label>
             <div className="relative">
               <Input id="password" type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="pr-10" required />
-              <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowPassword(!showPassword)}>
+              <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} className="absolute right-0 top-1/2 grid size-11 -translate-y-1/2 place-items-center text-muted-foreground" onClick={() => setShowPassword(!showPassword)}>
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
