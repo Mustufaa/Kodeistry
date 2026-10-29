@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   title: "Kodeistry — AI-Powered GitHub Code Review",
   description:
     "AI-powered code reviews for GitHub pull requests, security findings, and code-quality insights.",
+  verification: {
+    google: "CqN2gwHGWHeE4RALPIOS-Nz5qW3SIQSvrTkRwctwRws",
+  },
   icons: {
     icon: [
       { url: "/brand/kodeistry-black.png", media: "(prefers-color-scheme: light)" },
