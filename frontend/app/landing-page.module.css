@@ -333,10 +333,13 @@
 }
 
 /* Keep page controls and headings above the roaming decorative layer. */
-.landing :is(a, button, input, select, textarea, h1, h2, h3) { position: relative; z-index: 30; }
+.landing :is(a, button, input, select, textarea, h1, h2, h3, p) { position: relative; z-index: 30; }
 .heroCopy { z-index: auto; }
 
 @media (prefers-reduced-motion: reduce) {
   .primaryCta, .secondaryCta { transition: none; }
   .primaryCta:hover, .secondaryCta:hover, .primaryCta:active, .secondaryCta:active { transform: none; }
 }
+
+/* The decorative bug may pass behind copy without obscuring the brand badge. */
+.heroBadge { position: relative; z-index: 30; }

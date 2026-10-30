@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { FormEvent, KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { RotateCcw, Send, Trash2, X } from "lucide-react";
 
+import { useKodyVisibility } from "./use-kody-visibility";
 import { askKody, type ChatHistoryItem } from "@/lib/api/chat";
 import styles from "./kody-assistant.module.css";
 import { usePreferences } from "@/components/settings/preferences-provider";
@@ -49,28 +50,39 @@ function KodyRobot() {
     <svg className={styles.robot} viewBox="0 0 84 94" aria-hidden="true" focusable="false">
       <ellipse className={styles.shadow} cx="42" cy="89" rx="23" ry="3" />
       <g className={styles.robotFloat}>
-        <path className={styles.neck} d="M36 55h12v8H36z" />
-        <g className={styles.rightArm}>
+        <g data-kody-part="neck"><path className={styles.neck} d="M36 55h12v8H36z" /></g>
+        <g data-kody-part="right-arm"><g className={styles.rightArm}>
           <rect x="58" y="59" width="12" height="18" rx="6" />
           <circle cx="66" cy="77" r="5" />
         </g>
+        </g>
+        <g data-kody-part="body">
         <rect className={styles.body} x="24" y="58" width="36" height="26" rx="13" />
         <path className={styles.bodyShine} d="M30 66c4-6 11-7 17-5" />
         <circle className={styles.badge} cx="42" cy="72" r="4" />
-        <path className={styles.leg} d="M31 81v7m22-7v7" />
-        <g className={styles.waveArm}>
+        </g>
+        <g data-kody-part="left-leg"><path className={styles.leg} d="M31 81v7" /></g>
+        <g data-kody-part="right-leg"><path className={styles.leg} d="M53 81v7" /></g>
+        <g data-kody-part="left-arm"><g className={styles.waveArm}>
           <circle cx="22" cy="65" r="6" />
           <rect x="9" y="48" width="12" height="22" rx="6" transform="rotate(-30 20 63)" />
           <path className={styles.hand} d="M8 47c-2-2-3-5-1-7 2-2 4-1 5 1-1-4 1-6 3-6 3 0 3 3 3 5 1-3 4-3 5-1 2 2 0 6-2 9l-5 6z" />
         </g>
+        </g>
+        <g data-kody-part="head">
         <rect className={styles.ear} x="4" y="29" width="13" height="23" rx="7" />
         <rect className={styles.ear} x="67" y="29" width="13" height="23" rx="7" />
         <rect className={styles.head} x="12" y="8" width="60" height="51" rx="20" />
         <path className={styles.headShine} d="M23 18c10-9 28-9 40 1" />
         <rect className={styles.face} x="18" y="15" width="48" height="38" rx="15" />
-        <path className={styles.eye} d="M27 34c2-6 8-6 10 0m10 0c2-6 8-6 10 0" />
+        <path className={styles.eye} data-kody-eyes d="M27 34c2-6 8-6 10 0m10 0c2-6 8-6 10 0" />
         <path className={styles.smile} d="M37 42c3 3 7 3 10 0" />
+        </g>
       </g>
+      <g className={styles.fragments} data-kody-fragments>
+        {Array.from({ length: 18 }, (_, index) => <rect key={index} data-kody-fragment x={22 + index % 6 * 7} y={22 + Math.floor(index / 6) * 21} width={index % 3 + 2} height={index % 2 + 2} rx=".5" />)}
+      </g>
+      <circle className={styles.energy} data-kody-energy cx="42" cy="51" r="15" />
     </svg>
   );
 }
@@ -111,35 +123,7 @@ function KodyAssistantContent({ showGreeting }: { showGreeting: boolean }) {
     return () => { cancelAnimationFrame(frame); document.removeEventListener("keydown", onKeyDown); };
   }, [open]);
 
-  useEffect(() => {
-    const launcher = launcherRef.current;
-    if (!launcher) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    function resetCycle() {
-      clearTimeout(timer);
-      launcher!.dataset.away = "false";
-      if (open || document.hidden || launcher!.matches(":hover, :focus-within")) return;
-      timer = setTimeout(retreat, 10_000);
-    }
-    function retreat() {
-      if (open || document.hidden || launcher!.matches(":hover, :focus-within")) {
-        resetCycle();
-        return;
-      }
-      launcher!.dataset.away = "true";
-      timer = setTimeout(resetCycle, 5_000);
-    }
-    const events = ["mouseenter", "mouseleave", "focus", "blur"] as const;
-    events.forEach(event => launcher.addEventListener(event, resetCycle));
-    document.addEventListener("visibilitychange", resetCycle);
-    resetCycle();
-    return () => {
-      clearTimeout(timer);
-      events.forEach(event => launcher.removeEventListener(event, resetCycle));
-      document.removeEventListener("visibilitychange", resetCycle);
-      launcher.dataset.away = "false";
-    };
-  }, [open]);
+  useKodyVisibility(launcherRef, open);
 
   useEffect(() => () => requestRef.current?.abort(), []);
   useEffect(() => {
@@ -244,6 +228,7 @@ function KodyAssistantContent({ showGreeting }: { showGreeting: boolean }) {
         aria-expanded={open}
         aria-controls="kody-panel"
         data-away="false"
+        data-phase="visible"
         onClick={() => open ? closePanel() : setOpen(true)}
       >
         <KodyRobot />

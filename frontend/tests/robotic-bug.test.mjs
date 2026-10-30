@@ -67,6 +67,7 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
       if (failWebGL) throw new Error("WebGL unavailable");
       stats.created++;
       return {
+        metrics: size => ({ radius: size / 2, pixelsPerUnit: size / 5.8 }),
         reduceQuality: () => { stats.reducedQuality++; },
         resize: (size) => stats.sizes.push(size),
         render: () => { stats.rendered++; if (slowGPU) clock += 30; },
@@ -82,7 +83,7 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
     "./robot-scene": scene, "./robot-motion": motion,
     "./robotic-bug.module.css": { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) },
   }, { window, document, navigator: { hardwareConcurrency: 8, deviceMemory: constrained ? 1 : 8 },
-    performance: { now: () => clock }, Math: math, setTimeout, clearTimeout,
+    performance: { now: () => clock }, Math: math, setTimeout, clearTimeout, setInterval, clearInterval,
     ResizeObserver: class {
       constructor(callback) { observers.resize = callback; }
       observe() { observers.connected++; }
@@ -130,7 +131,7 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
       cleanup();
       assert.equal(frames.size, 0);
       assert.equal(idle.size, 0);
-      assert.equal(window.count() + document.count() + media.count() + page.count() + pause.count(), 0);
+      assert.equal(window.count() + document.count() + media.count() + page.count(), 0);
       assert.equal(robot.children.length, 0);
       assert.equal(stats.created, stats.disposed);
       assert.equal(observers.connected, 0);
@@ -197,39 +198,30 @@ test("Hidden tab stops scheduling frames and resumes without a movement jump", (
   assert.ok(app.stats.rendered > rendered);
   app.assertClean();
 });
-test("Requested automatic playback also runs with reduced motion, and manual pause still works", () => {
+test("Reduced motion renders a still robot without controls, then resumes on preference change", () => {
   const app = harness({ reduced: true }); app.advance();
   const initial = app.robot.style.transform;
   app.advance(3);
+  assert.equal(app.robot.style.transform, initial);
+  assert.equal(app.frames.size, 0);
+  assert.equal(app.stats.buttonCount, 0);
+  app.media.matches = false; app.media.dispatch("change"); app.advance(3);
   assert.notEqual(app.robot.style.transform, initial);
-  assert.ok(app.frames.size > 0);
-  assert.equal(app.pause.hidden, false);
-  app.media.matches = false; app.media.dispatch("change"); app.advance();
-  app.media.matches = true; app.media.dispatch("change"); app.advance();
-  assert.equal(app.overlay.dataset.motion, "running");
-  app.pause.dispatch("click");
-  const paused = app.robot.style.transform; app.advance(3);
-  assert.equal(app.robot.style.transform, paused);
-  assert.equal(app.frames.size, 0);
-  app.pause.dispatch("click"); app.advance(3);
-  assert.notEqual(app.robot.style.transform, paused);
   app.assertClean();
 });
-test("Pause control resumes and scrolling keeps the roaming robot alive beyond ten seconds", () => {
-  const app = harness(); app.advance(12);
-  app.pause.dispatch("click");
-  const rendered = app.stats.rendered;
-  app.advance(20);
-  assert.equal(app.frames.size, 0);
-  assert.equal(app.stats.rendered, rendered);
-  app.pause.dispatch("click"); app.advance();
-  assert.ok(app.stats.rendered > rendered);
-  const beforeScroll = app.stats.rendered;
-  app.window.dispatch("scroll"); app.advance(20);
-  assert.ok(app.stats.rendered > beforeScroll);
-  assert.ok(app.frames.size > 0);
-  app.assertClean();
+test("Patrol makes progress in every ten-second window for two minutes", () => {
+  for (const width of [320, 1366]) {
+    const app = harness({ width });
+    for (let window = 0; window < 12; window++) {
+      const positions = new Set();
+      for (let second = 0; second < 10; second++) { app.advance(1); positions.add(app.robot.style.transform); }
+      assert.ok(positions.size >= 4, `stalled at ${window * 10}s on ${width}px`);
+      assert.equal(app.frames.size, 1);
+    }
+    app.assertClean();
+  }
 });
+
 test("WebGL failure keeps a visible moving fallback", () => {
   const app = harness({ failWebGL: true }); app.advance();
   assert.equal(app.robot.children.length, 0);
@@ -385,4 +377,26 @@ test("Patrol chooses a reachable destination instead of getting pinned behind a 
     assert.ok(target.y >= 404);
   }
   assert.equal(canTravel(from, { x: 230, y: 145 }, obstacles, 84), false);
+});
+
+test("Steering brakes at every edge, arrives without orbiting and is refresh-rate independent", () => {
+  const { walk, distance } = evaluate("robot-motion.ts", {});
+  const bounds = { left: 100, right: 900, top: 100, bottom: 700 };
+  const results = [];
+  for (const hz of [30, 60, 144]) {
+    const state = { position: { x: 500, y: 400 }, heading: 0, speed: 0 };
+    for (const target of [{x:100,y:400}, {x:900,y:400}, {x:500,y:100}, {x:500,y:700}]) {
+      for (let frame = 0; frame < hz * 20; frame++) {
+        const before = { ...state.position }, heading = state.heading;
+        const result = walk(state, target, bounds, false, 1/hz, 90);
+        assert.ok(Math.abs(state.heading - heading) <= 2.6/hz + 1e-8);
+        assert.ok(distance(before, state.position) <= 90/hz + 1e-8);
+        assert.ok(result.actualSpeed >= 0 && result.actualSpeed <= 90 + 1e-8);
+        assert.ok(state.position.x >= 100 && state.position.x <= 900 && state.position.y >= 100 && state.position.y <= 700);
+      }
+      assert.ok(distance(state.position, target) < 1);
+    }
+    results.push(state.position);
+  }
+  assert.ok(distance(results[0], results[2]) < 1);
 });

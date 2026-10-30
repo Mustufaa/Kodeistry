@@ -25,9 +25,6 @@ try {
     const canvasBox = await robot.locator("canvas").boundingBox();
     assert.ok(canvasBox.x >= robotBox.x - 1 && canvasBox.y >= robotBox.y - 1 && canvasBox.x + canvasBox.width <= robotBox.x + robotBox.width + 1 && canvasBox.y + canvasBox.height <= robotBox.y + robotBox.height + 1, `${width}: rendered robot stays within its container`);
     assert.equal(await robot.locator("canvas").isVisible(), true);
-    const heading = await page.locator("h1").boundingBox();
-    const footprint = { x: canvasBox.x + canvasBox.width * .1 + 1, y: canvasBox.y + canvasBox.height * .1 + 1, width: canvasBox.width * .8 - 2, height: canvasBox.height * .8 - 2 };
-    assert.ok(!intersects(footprint, heading), `${width}: robot steers around the hero heading`);
     // The roaming decoration remains visible at the top and beside the footer.
     const controls = await footer.locator("a").all();
     for (const link of controls) {
@@ -85,9 +82,7 @@ try {
   const before = await pose();
   // A decorative scan may legitimately pause walking for 4.3 seconds.
   await page.waitForFunction(previous => document.querySelector("[data-robotic-bug] canvas")?.parentElement.style.transform !== previous, before, { timeout: 10000 });
-  await page.getByRole("button", { name: "Pause animation" }).click();
-  const paused = await pose(); await page.waitForTimeout(500); assert.equal(await pose(), paused);
-  await page.getByRole("button", { name: "Resume animation" }).click();
+  assert.equal(await page.getByRole("button", { name: /pause animation|resume animation/i }).count(), 0);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   const motionSamples = [];
@@ -99,9 +94,9 @@ try {
     })));
     await page.waitForTimeout(500);
   }
-  assert.ok(new Set(motionSamples.map(sample => sample.bug)).size > 15, "Bug keeps moving with reduced-motion enabled");
-  assert.ok(new Set(motionSamples.map(sample => sample.kody)).size > 15, "Kody keeps moving with reduced-motion enabled");
-  assert.equal(await robot.getAttribute("data-motion"), "running");
+  assert.equal(new Set(motionSamples.map(sample => sample.bug)).size, 1, "Bug respects reduced motion");
+  assert.equal(new Set(motionSamples.map(sample => sample.kody)).size, 1, "Kody respects reduced motion");
+  assert.equal(await robot.getAttribute("data-motion"), "reduced");
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.waitForFunction(() => document.querySelector("[data-robotic-bug]")?.dataset.motion === "running");
   await mkdir("test-results", { recursive: true });
@@ -128,7 +123,7 @@ try {
   await fallbackPage.waitForFunction(previous => document.querySelector("[data-robot-fallback]").parentElement.style.transform !== previous, fallbackPose);
   await fallbackPage.close();
   assert.deepEqual(errors, [], "No browser console or hydration errors");
-  console.log("PASS keyboard order/focus, internal links, 15-second animation, pause/resume, automatic playback with reduced motion, Kody movement, console and hydration checks");
+  console.log("PASS keyboard order/focus, internal links, 15-second animation, no animation controls, reduced motion, Kody, console and hydration checks");
 } finally {
   await browser.close();
 }

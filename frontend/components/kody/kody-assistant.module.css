@@ -6,7 +6,7 @@
   filter: drop-shadow(0 8px 9px rgb(0 0 0 / .2));
   transition: filter .2s ease, transform .35s ease;
 }
-.launcher[data-away="true"] { transform: translateX(calc(100% + env(safe-area-inset-right) + 48px)); }
+.launcher[hidden] { display: none; }
 .launcher:hover, .launcher:focus-visible { transform: translateY(-3px); filter: drop-shadow(0 12px 12px rgb(0 0 0 / .24)); }
 .root:has(.panel[data-open="true"]) .launcher { animation: none; }
 .launcher:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; border-radius: 18px; }
@@ -102,3 +102,17 @@
 }
 
 /* Decoration: 0; site header: 40; assistant: 50; native dialogs: browser top layer. */
+
+/* Animate wrappers around the original SVG parts; inner idle/wave poses are preserved. */
+.robot [data-kody-part], .robot [data-kody-fragment], .energy { transform-box: fill-box; transform-origin: center; }
+.fragments { fill: #c9c9ce; pointer-events: none; }
+.fragments rect, .energy { opacity: 0; }
+.energy { fill: #fff; filter: drop-shadow(0 0 3px #cfeaff); pointer-events: none; }
+.launcher[data-phase="dismantling"] *, .launcher[data-phase="assembling"] *,
+.root[data-tab-hidden="true"] * { animation-play-state: paused !important; }
+.launcher[data-phase="dismantling"] .shadow, .launcher[data-phase="assembling"] .shadow { opacity: 0; }
+.root[data-kody-phase="hidden"] .tip { visibility: hidden; }
+.launcher[data-phase="visible"] .waveArm { animation: greetWave 1s ease-in-out, occasionalWave 6s 1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .robotFloat, .waveArm, .eye { animation: none !important; }
+}

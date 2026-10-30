@@ -139,7 +139,8 @@ export default function Page() {
 
       </main>
 
-      <SiteFooter animationControl={<RoboticBugLoader />} />
+      <SiteFooter />
+      <RoboticBugLoader />
     </div>
   );
 }

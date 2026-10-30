@@ -76,7 +76,27 @@ export function createRobotScene(canvas: HTMLCanvasElement, lowPower: boolean) {
     }
 
     const robot = createRobotModel(scene);
+    // Project the original mesh's full gait/heading envelope through this camera.
+    camera.updateMatrixWorld();
+    const box = new THREE.Box3(), corner = new THREE.Vector3();
+    let extent = 0;
+    for (let heading = 0; heading < 16; heading++) {
+      for (let pose = 0; pose < 8; pose++) {
+        robot.animate(.08, pose * .2, 1.5, heading * Math.PI / 8, .5, .5);
+        box.setFromObject(robot.object);
+        for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+          corner.set(x, y, z).project(camera);
+          extent = Math.max(extent, Math.abs(corner.x), Math.abs(corner.y));
+        }
+      }
+    }
+    const fit = Math.max(1, extent / .9);
+    camera.left *= fit; camera.right *= fit; camera.top *= fit; camera.bottom *= fit;
+    camera.updateProjectionMatrix();
+    const footprintRatio = Math.min(.48, extent / fit / 2 + .02);
+    robot.animate(0, 0, 0, 0, 0, 0);
     return {
+      metrics(size: number) { return { radius: size * footprintRatio, pixelsPerUnit: size / (camera.right - camera.left) }; },
       reduceQuality() { renderer.setPixelRatio(1); },
       resize(size: number) { renderer.setSize(size, size, false); },
       render(dt: number, now: number, speed: number, heading: number, diff: number, turn: number) {

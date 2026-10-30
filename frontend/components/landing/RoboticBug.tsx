@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { createRobotScene } from "./robot-scene";
-import { canTravel, patrolTarget, GROUND_Y, avoidContent, contain, distance, viewportBounds, walk, type Point, type Obstacle } from "./robot-motion";
+import { GROUND_Y, patrolTarget, contain, distance, viewportBounds, walk, type Point } from "./robot-motion";
 import styles from "./robotic-bug.module.css";
 
 type ScanTarget = { element: Element; point: Point };
@@ -12,7 +12,6 @@ export default function RoboticBug() {
   const robotRef = useRef<HTMLDivElement>(null);
   const scanRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLElement>(null);
-  const pauseRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const overlay = overlayRef.current;
@@ -20,10 +19,9 @@ export default function RoboticBug() {
     const scan = scanRef.current;
     const label = labelRef.current;
     const page = overlay?.closest("[data-landing-page]");
-    const pause = pauseRef.current;
-    if (!overlay || !robot || !scan || !label || !page || !pause) return;
+    if (!overlay || !robot || !scan || !label || !page) return;
 
-    let paused = false;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const coarse = window.matchMedia("(pointer: coarse)");
     const device = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
     const lowPower = (device.deviceMemory ?? 8) <= 4 || navigator.hardwareConcurrency <= 4 || coarse.matches || Boolean(device.connection?.saveData);
@@ -53,7 +51,9 @@ export default function RoboticBug() {
     let scanStarted: number | undefined;
     let scanPhase = "";
     let candidates: ScanTarget[] = [];
-    let obstacles: Obstacle[] = [];
+    let radius = size / 2;
+    let pixelsPerUnit = size / 5.8;
+    let wasChasing = false;
     let movementAnchor = { ...state.position };
     let movementCheckedAt = 0;
     const random = (min: number, max: number) => min + Math.random() * (max - min);
@@ -66,7 +66,7 @@ export default function RoboticBug() {
       nextScan = now + random(10, 18);
     }
     function patrol() {
-      target = patrolTarget(state.position, bounds, obstacles, size * 0.4);
+      target = patrolTarget(state.position, bounds, [], 0);
       retargetAt = now + random(6, 12);
     }
     function measure() {
@@ -79,23 +79,22 @@ export default function RoboticBug() {
       robot!.style.width = size + "px";
       robot!.style.height = size + "px";
       const header = page!.querySelector("header")?.getBoundingClientRect();
-      obstacles = [...page!.querySelectorAll("h1, h2, h3, a, button")]
-        .map(element => element.getBoundingClientRect())
-        .filter(rect => rect.bottom > 0 && rect.top < window.innerHeight);
+      const metrics = scene?.metrics(size);
+      radius = metrics?.radius ?? size * .48;
+      pixelsPerUnit = metrics?.pixelsPerUnit ?? size / 5.8;
       // Leave the header and the bottom assistant/controls area clear.
-      bounds = viewportBounds(rect.width, Math.max(size + 16, rect.height - 104), size, header?.bottom ?? 0);
+      bounds = viewportBounds(rect.width, Math.max(size + 16, rect.height - 104), radius * 2, header?.bottom ?? 0);
       state.position = contain(state.position, bounds);
       target = contain(target, bounds);
       if (resized) scene?.resize(size);
       candidates = [...page!.querySelectorAll("[data-bug-scan], [data-bug-card]")].flatMap((element) => {
         const card = element.getBoundingClientRect();
         if (card.bottom < 0 || card.top > window.innerHeight) return [];
-        return [{ element, point: avoidContent({ x: card.right - 20, y: card.top + 20 }, bounds, obstacles, size * 0.4) }];
+        return [{ element, point: contain({ x: card.right - 20, y: card.top + 20 }, bounds) }];
       });
     }
 
     function position() {
-      state.position = avoidContent(state.position, bounds, obstacles, size * 0.4);
       robot!.style.transform = `translate3d(${(state.position.x - size / 2).toFixed(2)}px, ${(state.position.y - size / 2).toFixed(2)}px, 0)`;
     }
     function stopLoop() {
@@ -104,13 +103,13 @@ export default function RoboticBug() {
       last = 0;
     }
     function startLoop() {
-      if (disposed || !initialized || frame || document.hidden || paused) return;
+      if (disposed || !initialized || frame || document.hidden || reduced.matches) return;
       overlay!.dataset.motion = "running";
       frame = window.requestAnimationFrame(tick);
     }
     function tick(timestamp: number) {
       frame = 0;
-      if (disposed || !initialized || document.hidden || paused) return;
+      if (disposed || !initialized || document.hidden || reduced.matches) return;
       if (last && timestamp - last < frameInterval - 1) {
         frame = window.requestAnimationFrame(tick);
         return;
@@ -119,19 +118,24 @@ export default function RoboticBug() {
       last = timestamp;
       now += dt;
       if (dirty) measure();
-      const chasing = pointer !== undefined && now - pointerAt < 2.5 && canTravel(state.position, avoidContent(pointer, bounds, obstacles, size * 0.4), obstacles, size * 0.4);
+      const chasing = pointer !== undefined && now - pointerAt < 3;
+      if (wasChasing && !chasing) patrol();
+      wasChasing = chasing;
       let stopped = false;
 
       if (chasing) {
         if (scanTarget) stopScan();
-        target = avoidContent(pointer!, bounds, obstacles, size * 0.4);
-        stopped = distance(state.position, target) < size * 0.35;
+        const separation = distance(state.position, pointer!);
+        const standOff = Math.min(radius * .7, 60);
+        const ratio = Math.max(0, (separation - standOff) / Math.max(separation, 1));
+        target = contain({ x: state.position.x + (pointer!.x - state.position.x) * ratio, y: state.position.y + (pointer!.y - state.position.y) * ratio }, bounds);
+        stopped = separation <= standOff + 2;
         overlay!.dataset.mode = stopped ? "locked" : "following";
       } else {
         if (!scanTarget && now >= nextScan) {
           // DOM geometry is read only when selecting a target or after scrolling/resizing.
           measure();
-          const nearest = candidates.filter(candidate => canTravel(state.position, candidate.point, obstacles, size * 0.4)).reduce<ScanTarget | undefined>((best, candidate) =>
+          const nearest = candidates.reduce<ScanTarget | undefined>((best, candidate) =>
             !best || distance(state.position, candidate.point) < distance(state.position, best.point) ? candidate : best, undefined);
           if (nearest) {
             scanTarget = nearest;
@@ -143,7 +147,6 @@ export default function RoboticBug() {
           if (!scanTarget.element.isConnected) stopScan();
           else if (scanStarted === undefined && distance(state.position, target) < 18) {
             scanStarted = now;
-            state.speed = 0;
           }
           if (scanStarted !== undefined) {
             stopped = true;
@@ -165,23 +168,21 @@ export default function RoboticBug() {
           overlay!.dataset.mode = "patrol";
         }
       }
-      const pixelsPerUnit = size / 5.8;
       const steering = walk(state, target, bounds, stopped, dt, 1.5 * pixelsPerUnit);
       position();
-      // Recover from a turn pressing against an exclusion boundary instead of
-      // rendering walking legs forever at the same screen coordinate.
-      if (now - movementCheckedAt >= 1.2) {
+      // Allow a full smooth turn before deciding that progress has stalled.
+      if (now - movementCheckedAt >= 3) {
         if (!stopped && distance(state.position, movementAnchor) < 2) {
           stopScan();
           patrol();
-          state.heading = Math.atan2(target.x - state.position.x, (target.y - state.position.y) / GROUND_Y);
           state.speed = 0;
         }
         movementAnchor = { ...state.position };
         movementCheckedAt = now;
       }
       const renderStart = performance.now();
-      if (!contextLost) scene?.render(dt, now, state.speed / pixelsPerUnit, state.heading, steering.diff, steering.turn);
+      const gaze = chasing ? Math.atan2(pointer!.x - state.position.x, (pointer!.y - state.position.y) / GROUND_Y) - state.heading : steering.diff;
+      if (!contextLost) scene?.render(dt, now, steering.actualSpeed / pixelsPerUnit, state.heading, Math.atan2(Math.sin(gaze), Math.cos(gaze)), steering.turn);
       renderCost += performance.now() - renderStart;
       renderSamples++;
       // Keep walking on slower GPUs: lower resolution and frame rate instead
@@ -201,7 +202,7 @@ export default function RoboticBug() {
       if (event.pointerType !== "mouse" || coarse.matches) return;
       const rect = overlay!.getBoundingClientRect();
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
-      pointer = contain({ x: event.clientX - rect.left, y: event.clientY - rect.top }, bounds);
+      pointer = { x: event.clientX - rect.left, y: event.clientY - rect.top };
       pointerAt = now;
     }
     function onScroll() {
@@ -217,21 +218,14 @@ export default function RoboticBug() {
     }
     function onLayout() {
       onScroll();
-      if (paused) renderStill();
+      if (reduced.matches) renderStill();
     }
     function onMotion() {
       stopLoop();
       stopScan();
-      overlay!.dataset.motion = paused ? "paused" : "running";
-      pause!.hidden = false;
+      overlay!.dataset.motion = reduced.matches ? "reduced" : "running";
       renderStill();
       startLoop();
-    }
-    function onPause() {
-      paused = !paused;
-      pause!.textContent = paused ? "Resume animation" : "Pause animation";
-      pause!.setAttribute("aria-pressed", String(paused));
-      onMotion();
     }
     function onVisibility() {
       if (document.hidden) { stopLoop(); scan!.hidden = true; }
@@ -297,9 +291,13 @@ export default function RoboticBug() {
 
     const resizeObserver = new ResizeObserver(onLayout);
     resizeObserver.observe(overlay);
-    // Automatic playback is requested; the visible pause button remains available.
-    pause.hidden = false;
-    pause.addEventListener("click", onPause);
+    reduced.addEventListener("change", onMotion);
+    // Some browsers update matches before delivering the change event. Reconcile
+    // without rendering while reduced/hidden, so playback also resumes reliably.
+    const preferenceTimer = setInterval(() => {
+      if (!initialized || document.hidden) return;
+      if (overlay.dataset.motion !== (reduced.matches ? "reduced" : "running")) onMotion();
+    }, 1000);
     window.addEventListener("pointermove", onPointer, { passive: true });
     window.addEventListener("resize", onLayout, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -315,7 +313,8 @@ export default function RoboticBug() {
       if (idle !== undefined) window.cancelIdleCallback(idle);
       if (timer !== undefined) clearTimeout(timer);
       resizeObserver.disconnect();
-      pause.removeEventListener("click", onPause);
+      reduced.removeEventListener("change", onMotion);
+      clearInterval(preferenceTimer);
       window.removeEventListener("pointermove", onPointer);
       window.removeEventListener("resize", onLayout);
       window.removeEventListener("scroll", onScroll);
@@ -350,7 +349,6 @@ export default function RoboticBug() {
         </div>
       </div>
     </div>
-    <button ref={pauseRef} type="button" className={styles.pause} aria-pressed="false">Pause animation</button>
     </>
   );
 }

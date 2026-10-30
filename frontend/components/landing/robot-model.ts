@@ -316,7 +316,7 @@ export function createRobotModel(scene: THREE.Scene) {
     head.rotation.y = state.headYaw;
 
     antennae.forEach(({ g, s }, i) => {
-      g.rotation.y = Math.sin(now * 2.6 + i * 1.7) * 0.25 * s + s * 0.1;
+      g.rotation.y = state.headYaw * .35 + Math.sin(now * 2.6 + i * 1.7) * 0.25 * s + s * 0.1;
       g.rotation.x = Math.sin(now * 2.1 + i) * 0.12;
     });
 
@@ -325,5 +325,5 @@ export function createRobotModel(scene: THREE.Scene) {
 
 
   }
-  return { animate };
+  return { animate, object: bug };
 }

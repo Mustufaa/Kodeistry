@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { Mail } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { GitHubMark } from "@/components/icons/github-mark";
@@ -13,7 +12,7 @@ const groups = [
   { title: "Legal", links: [["Privacy Policy", "/privacy"], ["Terms of Service", "/terms"], ["Contact", email]] },
 ];
 
-export function SiteFooter({ animationControl }: { animationControl?: ReactNode }) {
+export function SiteFooter() {
   return (
     <footer className={"dark " + styles.footer} aria-label="Kodeistry footer">
       <div className={styles.inner}>
@@ -39,7 +38,6 @@ export function SiteFooter({ animationControl }: { animationControl?: ReactNode 
         </div>
         <div className={styles.bottom}>
           <p>&copy; {new Date().getFullYear()} Kodeistry. All rights reserved.</p>
-          {animationControl}
           <span className={styles.signature}>Built for the next pull request.</span>
         </div>
       </div>

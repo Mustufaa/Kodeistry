@@ -19,17 +19,26 @@ export function walk(
   state: { position: Point; heading: number; speed: number },
   target: Point, bounds: Bounds, stopped: boolean, dt: number, maxSpeed: number,
 ) {
-  const desired = Math.atan2(target.x - state.position.x, (target.y - state.position.y) / GROUND_Y);
+  const remaining = distance(state.position, target);
+  const desired = remaining < .01 ? state.heading : Math.atan2(target.x - state.position.x, (target.y - state.position.y) / GROUND_Y);
   const diff = Math.atan2(Math.sin(desired - state.heading), Math.cos(desired - state.heading));
-  const step = stopped ? 0 : clamp(diff, -2.6 * dt, 2.6 * dt);
+  const step = clamp(diff, -2.6 * dt, 2.6 * dt);
   state.heading += step;
-  const turnPenalty = 1 - Math.min(Math.abs(diff) / 1.2, 1) * 0.7;
-  state.speed += ((stopped ? 0 : maxSpeed * turnPenalty) - state.speed) * Math.min(1, dt * 3.5);
-  state.position = contain({
-    x: state.position.x + Math.sin(state.heading) * state.speed * dt,
-    y: state.position.y + Math.cos(state.heading) * state.speed * GROUND_Y * dt,
-  }, bounds);
-  return { diff, turn: step / Math.max(dt, 0.0001) / 2.6 };
+  const alignment = Math.max(0, Math.cos(diff));
+  const dx = Math.sin(state.heading), dy = Math.cos(state.heading) * GROUND_Y;
+  const edgeDistance = Math.min(
+    dx > .001 ? (bounds.right - state.position.x) / dx : dx < -.001 ? (bounds.left - state.position.x) / dx : Infinity,
+    dy > .001 ? (bounds.bottom - state.position.y) / dy : dy < -.001 ? (bounds.top - state.position.y) / dy : Infinity,
+  );
+  // Brake before an edge/arrival; turn in place instead of walking into a wall.
+  const desiredSpeed = stopped ? 0 : Math.min(maxSpeed * alignment * alignment, remaining * 2.5, Math.max(0, edgeDistance) * 2.5);
+  state.speed += (desiredSpeed - state.speed) * (1 - Math.exp(-5 * dt));
+  const travel = Math.max(0, Math.min(state.speed * dt, remaining, edgeDistance));
+  const before = state.position;
+  state.position = contain({ x: before.x + dx * travel, y: before.y + dy * travel }, bounds);
+  const actualSpeed = Math.hypot(state.position.x - before.x, (state.position.y - before.y) / GROUND_Y) / Math.max(dt, .0001);
+  return { diff, turn: step / Math.max(dt, .0001) / 2.6, actualSpeed };
+
 }
 
 
