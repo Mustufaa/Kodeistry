@@ -17,7 +17,6 @@ export function SiteHeader() {
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-3">
           <ThemeToggle />
-          <Link href="/faq" className="inline-flex min-h-10 items-center px-1 text-sm text-muted-foreground hover:text-foreground md:hidden">FAQ</Link>
           <Link href="/login" className="inline-flex min-h-10 items-center px-2 text-sm font-medium text-foreground hover:text-primary">Login</Link>
           <Link href="/register" className={styles.headerCta}>Get Started</Link>
         </div>
