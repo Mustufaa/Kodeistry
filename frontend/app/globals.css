@@ -80,6 +80,12 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Native dialogs trap focus; also lock the background page's scroll. */
+html:has(dialog:modal),
+body:has(dialog:modal) {
+  overflow: hidden;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

@@ -71,6 +71,28 @@ try {
     items = [];
     await bell.click();
     await expect(dialog.getByText("No security updates available", { exact: true })).toBeVisible();
+    items = Array.from({ length: 30 }, (_, index) => ({
+      id: "cisa:scroll-" + index, title: "Security advisory " + index,
+      summary: "A public vulnerability advisory with remediation guidance.",
+      source: "CISA KEV", kind: "exploited", reference: "CVE-2026-12345",
+      publishedAt: "2026-10-29T12:00:00Z", severity: null,
+      url: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+    }));
+    await dialog.getByRole("button", { name: "Refresh security updates" }).click();
+    await expect(dialog.locator("li")).toHaveCount(30);
+    await page.setViewportSize({ width, height: 640 });
+    const scrolling = await dialog.evaluate(element => {
+      const containers = [element, ...element.querySelectorAll("*")].filter(node =>
+        /auto|scroll/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight);
+      element.scrollTop = element.scrollHeight;
+      return { count: containers.length, reachedBottom: element.scrollTop > 0,
+        background: getComputedStyle(document.documentElement).overflowY };
+    });
+    assert.equal(scrolling.count, 1, "only the dialog scrolls, with no nested list scrollbar");
+    assert.equal(scrolling.reachedBottom, true, "all alerts remain reachable");
+    assert.equal(scrolling.background, "hidden", "background page is locked");
+    await page.keyboard.press("Escape");
+    assert.notEqual(await page.evaluate(() => getComputedStyle(document.documentElement).overflowY), "hidden");
     console.log(`PASS ${width}px: feed, loading, read/unread persistence, account isolation, safe text/links, keyboard, overflow, error/retry, empty state`);
     await page.close();
   }

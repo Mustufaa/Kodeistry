@@ -73,7 +73,7 @@ function SecurityNotifications({ userId }: { userId: number }) {
       </p>}
       {feed.isPending ? <div role="status" aria-label="Loading security updates" className="space-y-3">
         {[1, 2, 3].map(id => <div key={id} className="h-24 rounded-lg bg-muted motion-safe:animate-pulse" />)}
-      </div> : visible.length ? <ul className="max-h-[48dvh] space-y-3 overflow-y-auto overscroll-contain">
+      </div> : visible.length ? <ul className="space-y-3">
         {visible.map(item => {
           const isRead = readIds.has(item.id);
           const label = item.kind === "ransomware" ? "Known ransomware use" : item.kind === "exploited" ? "Confirmed exploitation" : `${item.severity ?? "Unknown"} severity`;
