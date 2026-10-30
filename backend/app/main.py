@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.types import ASGIApp
 from sqlalchemy import text
 from app.db.database import engine
 from app.core.config import settings
@@ -25,7 +26,20 @@ from app.api.analytics import router as analytics_router
 from app.api.fix_workflow import router as fix_workflow_router
 from app.api.chat import router as chat_router
 
-app = FastAPI(
+class KodeistryAPI(FastAPI):
+    def build_middleware_stack(self) -> ASGIApp:
+        # Wrap ServerErrorMiddleware too: browser clients must be able to read
+        # unhandled 500 responses, not have them masked as CORS failures.
+        return CORSMiddleware(
+            super().build_middleware_stack(),
+            allow_origins=settings.CORS_ALLOWED_ORIGINS,
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
+        )
+
+
+app = KodeistryAPI(
     title="Kodeistry API",
     version="1.0.0",
     description="AI-powered code review platform for GitHub pull requests.",
@@ -39,14 +53,6 @@ async def validation_error(request: Request, exc: RequestValidationError):
         return JSONResponse(status_code=422, content={"detail": errors}, headers={"Cache-Control": "no-store"})
     return await request_validation_exception_handler(request, exc)
 
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
-)
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(secret_scan_router)
