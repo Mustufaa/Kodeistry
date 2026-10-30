@@ -18,6 +18,7 @@ from app.models.repository import Repository
 from app.models.secret_scan import SecretFinding, SecretOccurrence, SecretScanRun
 from app.models.tenant_member import TenantMember
 from app.secret_scanner.engine import ScanCancelled, ScanFailure, ScanResult, scan_repository
+from app.services import collaboration as _collaboration_events  # Register transactional scan notifications in worker processes.
 
 logger = logging.getLogger(__name__)
 LEASE_SECONDS = 90

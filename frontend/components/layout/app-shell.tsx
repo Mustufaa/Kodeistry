@@ -31,6 +31,7 @@ import { logout } from "@/lib/api/auth";
 import { RepositoryAccessGate } from "@/components/layout/repository-access-gate";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { TeamChatDrawer } from "@/components/layout/team-chat-drawer";
+import { CollaborationProvider } from "@/components/layout/collaboration-provider";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -166,7 +167,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <CollaborationProvider><div className="min-h-screen bg-background text-foreground">
       <aside className={cn("fixed inset-y-0 left-0 z-40 hidden border-r bg-sidebar transition-[width] duration-200 lg:block", collapsed ? "w-[72px]" : "w-64")}>
         {sidebar()}
         <button
@@ -202,12 +203,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
             {tenants.length > 1 ? <label className="min-w-0"><span className="sr-only">Active team</span><select aria-label="Active team" value={tenantId ?? ""} disabled={isSwitching} onChange={(event) => setTenantId(Number(event.target.value))} className="h-9 max-w-[40vw] rounded-lg border bg-background px-2 text-sm sm:max-w-64">{tenants.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label> : null}
             {switchError ? <span role="alert">Could not switch team. Try again.</span> : null}
-            <TeamChatDrawer />
             <NotificationBell />
           </div>
         </header>
         <main className="mx-auto w-full max-w-[1480px] p-4 sm:p-6 lg:p-8">{isSwitching ? <p role="status">Switching team...</p> : <RepositoryAccessGate>{children}</RepositoryAccessGate>}</main>
       </div>
-    </div>
+      <TeamChatDrawer />
+    </div></CollaborationProvider>
   );
 }

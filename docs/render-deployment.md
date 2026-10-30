@@ -1,5 +1,7 @@
 # Deploy Kodeistry on Render
 
+Before deploying persistent notifications and team chat, follow the [collaboration migration and WebSocket guide](./collaboration.md).
+
 ## Existing native Python backend service
 
 If the build log says `pip install -r requirements.txt`, Render is using the native Python runtime. Configure this backend service with:

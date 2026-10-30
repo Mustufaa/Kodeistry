@@ -24,6 +24,7 @@ from app.api.onboarding import router as onboarding_router
 from app.api.analytics import router as analytics_router
 from app.api.fix_workflow import router as fix_workflow_router
 from app.api.chat import router as chat_router
+from app.api.collaboration import router as collaboration_router
 
 app = FastAPI(
     title="Kodeistry API",
@@ -33,7 +34,7 @@ app = FastAPI(
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError):
-    if request.url.path.startswith("/api/invitations/"):
+    if request.url.path.startswith("/api/invitations/") or "/collaboration/" in request.url.path:
         # FastAPI normally echoes invalid inputs, which could disclose a token/password.
         errors = [{key: error[key] for key in ("loc", "msg", "type")} for error in exc.errors()]
         return JSONResponse(status_code=422, content={"detail": errors}, headers={"Cache-Control": "no-store"})
@@ -64,9 +65,17 @@ app.include_router(onboarding_router)
 app.include_router(analytics_router, dependencies=[Depends(authorize_team_request)])
 app.include_router(fix_workflow_router, dependencies=[Depends(authorize_team_request)])
 app.include_router(chat_router)
+app.include_router(collaboration_router)
 
 @app.middleware("http")
 async def private_api_responses(request: Request, call_next):
+    if "/collaboration/" in request.url.path and request.method in {"POST", "PUT", "PATCH"}:
+        body = bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body) > 24000:
+                return JSONResponse(status_code=413, content={"detail": "Collaboration request is too large."})
+        request._body = bytes(body)
     response = await call_next(request)
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
