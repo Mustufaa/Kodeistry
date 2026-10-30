@@ -1,7 +1,8 @@
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  /* Above landing text (30), below navigation (40) and Kody (50). */
+  z-index: 35;
   overflow: clip;
   pointer-events: none;
   user-select: none;
