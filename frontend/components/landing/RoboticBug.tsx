@@ -103,13 +103,14 @@ export default function RoboticBug() {
       last = 0;
     }
     function startLoop() {
-      if (disposed || !initialized || frame || document.hidden || reduced.matches) return;
+      if (disposed || !initialized || frame || document.hidden) return;
       overlay!.dataset.motion = "running";
+      overlay!.dataset.intensity = reduced.matches ? "gentle" : "full";
       frame = window.requestAnimationFrame(tick);
     }
     function tick(timestamp: number) {
       frame = 0;
-      if (disposed || !initialized || document.hidden || reduced.matches) return;
+      if (disposed || !initialized || document.hidden) return;
       if (last && timestamp - last < frameInterval - 1) {
         frame = window.requestAnimationFrame(tick);
         return;
@@ -168,7 +169,7 @@ export default function RoboticBug() {
           overlay!.dataset.mode = "patrol";
         }
       }
-      const steering = walk(state, target, bounds, stopped, dt, 1.5 * pixelsPerUnit);
+      const steering = walk(state, target, bounds, stopped, dt, (reduced.matches ? .65 : 1.5) * pixelsPerUnit);
       position();
       // Allow a full smooth turn before deciding that progress has stalled.
       if (now - movementCheckedAt >= 3) {
@@ -223,7 +224,8 @@ export default function RoboticBug() {
     function onMotion() {
       stopLoop();
       stopScan();
-      overlay!.dataset.motion = reduced.matches ? "reduced" : "running";
+      overlay!.dataset.motion = "running";
+      overlay!.dataset.intensity = reduced.matches ? "gentle" : "full";
       renderStill();
       startLoop();
     }
@@ -292,11 +294,11 @@ export default function RoboticBug() {
     const resizeObserver = new ResizeObserver(onLayout);
     resizeObserver.observe(overlay);
     reduced.addEventListener("change", onMotion);
-    // Some browsers update matches before delivering the change event. Reconcile
-    // without rendering while reduced/hidden, so playback also resumes reliably.
+    // Keep the requested automatic playback in a gentler mode when motion is
+    // reduced. Reconcile delayed browser preference events without extra renders.
     const preferenceTimer = setInterval(() => {
       if (!initialized || document.hidden) return;
-      if (overlay.dataset.motion !== (reduced.matches ? "reduced" : "running")) onMotion();
+      if (overlay.dataset.intensity !== (reduced.matches ? "gentle" : "full")) onMotion();
     }, 1000);
     window.addEventListener("pointermove", onPointer, { passive: true });
     window.addEventListener("resize", onLayout, { passive: true });

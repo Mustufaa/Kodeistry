@@ -113,6 +113,11 @@
 .launcher[data-phase="dismantling"] .shadow, .launcher[data-phase="assembling"] .shadow { opacity: 0; }
 .root[data-kody-phase="hidden"] .tip { visibility: hidden; }
 .launcher[data-phase="visible"] .waveArm { animation: greetWave 1s ease-in-out, occasionalWave 6s 1s ease-in-out infinite; }
+@keyframes gentleFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes gentleWave { 0%, 60%, 100% { transform: rotate(0); } 20%, 40% { transform: rotate(-8deg); } }
 @media (prefers-reduced-motion: reduce) {
   .robotFloat, .waveArm, .eye { animation: none !important; }
+  /* Explicit automatic-playback preference: small, slow movement instead of freezing. */
+  .launcher .robotFloat { animation-name: gentleFloat !important; animation-duration: 6s !important; animation-timing-function: ease-in-out !important; animation-iteration-count: infinite !important; }
+  .launcher[data-phase="visible"] .waveArm { animation-name: gentleWave !important; animation-duration: 8s !important; animation-timing-function: ease-in-out !important; animation-iteration-count: infinite !important; }
 }

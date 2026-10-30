@@ -94,9 +94,9 @@ try {
     })));
     await page.waitForTimeout(500);
   }
-  assert.equal(new Set(motionSamples.map(sample => sample.bug)).size, 1, "Bug respects reduced motion");
-  assert.equal(new Set(motionSamples.map(sample => sample.kody)).size, 1, "Kody respects reduced motion");
-  assert.equal(await robot.getAttribute("data-motion"), "reduced");
+  assert.ok(new Set(motionSamples.map(sample => sample.bug)).size > 5, "Bug keeps gentle automatic movement with reduced motion");
+  assert.ok(new Set(motionSamples.map(sample => sample.kody)).size > 5, "Kody keeps gentle automatic movement with reduced motion");
+  assert.equal(await robot.getAttribute("data-intensity"), "gentle");
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.waitForFunction(() => document.querySelector("[data-robotic-bug]")?.dataset.motion === "running");
   await mkdir("test-results", { recursive: true });

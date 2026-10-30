@@ -198,14 +198,16 @@ test("Hidden tab stops scheduling frames and resumes without a movement jump", (
   assert.ok(app.stats.rendered > rendered);
   app.assertClean();
 });
-test("Reduced motion renders a still robot without controls, then resumes on preference change", () => {
+test("Reduced motion keeps gentle automatic movement without controls and handles live preference changes", () => {
   const app = harness({ reduced: true }); app.advance();
   const initial = app.robot.style.transform;
   app.advance(3);
-  assert.equal(app.robot.style.transform, initial);
-  assert.equal(app.frames.size, 0);
+  assert.notEqual(app.robot.style.transform, initial);
+  assert.equal(app.frames.size, 1);
+  assert.equal(app.overlay.dataset.intensity, "gentle");
   assert.equal(app.stats.buttonCount, 0);
   app.media.matches = false; app.media.dispatch("change"); app.advance(3);
+  assert.equal(app.overlay.dataset.intensity, "full");
   assert.notEqual(app.robot.style.transform, initial);
   app.assertClean();
 });

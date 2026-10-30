@@ -6,7 +6,7 @@ The existing six-leg Three.js bug patrols automatically with no visible animatio
 
 The previous movement loop projected the robot out of expanded heading/button rectangles after each movement step. These rectangles could disconnect the available space on narrow layouts, while steering and the gait still assumed forward travel. Recovery also snapped the heading. The new loop removes those hard collision walls and heading snaps. Existing page stacking keeps headings and controls above the pointer-transparent decoration. Safe viewport waypoints, arrival braking and a three-second progress watchdog provide recovery without teleportation during patrol. Resizing may clamp the position into the newly visible viewport.
 
-The camera now measures a conservative projected envelope of the existing model over gait poses and headings, including feet and antennae. Camera fitting, boundary clearance and pixels-per-world-unit use this envelope. Delta time governs movement; GPU cost can reduce resolution/frame rate. Rendering stops in hidden tabs. Reduced motion displays a still bug; a lightweight one-second preference reconciliation also handles delayed browser media-query events.
+The camera now measures a conservative projected envelope of the existing model over gait poses and headings, including feet and antennae. Camera fitting, boundary clearance and pixels-per-world-unit use this envelope. Delta time governs movement; GPU cost can reduce resolution/frame rate. Rendering stops in hidden tabs. Following the explicit automatic-playback preference, reduced motion uses slower bug walking instead of a still bug; a lightweight one-second preference reconciliation also handles delayed browser media-query events.
 
 Kody remains the original layered SVG, not a replacement 3D character. Its existing ten-second idle visibility cycle now runs:
 
@@ -16,7 +16,7 @@ Kody remains the original layered SVG, not a replacement 3D character. Its exist
 4. Fragments disappear: 1500?1800 ms.
 5. Launcher hidden and inert for five seconds, then a reversed 1800 ms assembly and welcoming wave.
 
-Hover, focus and open chat retain availability. An interrupted dismantle reverses from its current pose. Hidden elements do not receive pointer or keyboard input. Timelines, timers and listeners are canceled on cleanup; conversation state and pending API requests remain independent of the visibility timeline. Reduced motion uses a short fade with no fragmented movement or idle waving. This follows the latest supplied brief's reduced-motion requirement.
+Hover, focus and open chat retain availability. An interrupted dismantle reverses from its current pose. Hidden elements do not receive pointer or keyboard input. Timelines, timers and listeners are canceled on cleanup; conversation state and pending API requests remain independent of the visibility timeline. Reduced motion uses a short fade with no fragmented movement, a two-pixel idle bob and a small, slow wave. This preserves the explicit automatic-playback preference while reducing motion intensity.
 
 ## Files
 
@@ -58,3 +58,9 @@ Limitations: browser checks use installed Chrome with desktop/mobile viewports, 
 - Kody stages, repeated cycles, interrupted dismantling, repeated chat open/close, mocked request history, reduced motion and no invisible hit target: passed on 375px/1366px.
 - Responsive checks at 320/360/375/390/430/768/1024/1366/1920px, footer links/focus/touch targets, WebGL fallback and no console/hydration errors: passed.
 - Reviewed desktop roaming and mobile Kody separation/fragment screenshots.
+
+### Live-site regression follow-up
+
+Audited https://kodeistry.onrender.com/ for 35 seconds in both browser motion modes. Normal mode: 34 bug positions, 24 Kody poses, all four visibility phases, zero JavaScript errors. Reduced mode: one bug position and one Kody pose; the hide/show cycle continued. This reproduced the reported stationary characters under reduced motion. The follow-up restores gentler automatic playback in that mode and keeps background-tab suspension and the existing Kody visibility cycle. Live audit output is under `frontend/test-results/live-*.json`; this follow-up requires deployment before the live URL changes.
+
+Follow-up verification: production build, 30 unit tests, and targeted lint passed. A 35-second local browser comparison recorded 35 bug positions and 24 Kody poses with reduced motion enabled, with zero JavaScript errors. Kody interaction tests passed at 375px and 1366px, including pausing gentle idle during visibility transitions. No deployment was performed.

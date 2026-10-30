@@ -48,8 +48,9 @@ try {
     await page.evaluate(() => { delete document.hidden; document.dispatchEvent(new Event("visibilitychange")); });
     await page.waitForFunction(previous => document.querySelector("[data-robotic-bug] canvas").parentElement.style.transform !== previous, hidden, { timeout: 10000 });
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.waitForFunction(() => document.querySelector("[data-robotic-bug]").dataset.motion === "reduced").catch(async error => { console.log(await page.evaluate(() => ({ media: matchMedia("(prefers-reduced-motion: reduce)").matches, hidden: document.hidden, motion: document.querySelector("[data-robotic-bug]").dataset.motion }))); throw error; });
-    const still = await pose(); await page.waitForTimeout(500); assert.equal(await pose(), still);
+    await page.waitForFunction(() => document.querySelector("[data-robotic-bug]").dataset.intensity === "gentle").catch(async error => { console.log(await page.evaluate(() => ({ media: matchMedia("(prefers-reduced-motion: reduce)").matches, hidden: document.hidden, motion: document.querySelector("[data-robotic-bug]").dataset.motion }))); throw error; });
+    const gentle = await pose();
+    await page.waitForFunction(previous => document.querySelector("[data-robotic-bug] canvas").parentElement.style.transform !== previous, gentle, { timeout: 10000 });
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.screenshot({ path: `test-results/robot-patrol-${width}.png` });
     assert.equal(await robot.evaluate(el => getComputedStyle(el).pointerEvents), "none");

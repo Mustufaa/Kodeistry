@@ -59,6 +59,7 @@ try {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await launcher.blur(); await page.clock.fastForward(10000);
     assert.equal(await launcher.evaluate(el => el.getAnimations({ subtree: true }).filter(animation => animation.effect.getTiming().iterations !== Infinity).length), 1);
+    assert.equal(await launcher.locator('svg > g').first().evaluate(el => getComputedStyle(el).animationPlayState), "paused", "gentle idle pauses during the visibility transition");
     await finish(); assert.equal(await phase(), "hidden");
     assert.deepEqual(errors, []);
     console.log(`PASS ${width}px Kody stages, 10/5 timing, reassembly, cancellation, history, API payload, repeated chat, reduced motion, overflow`);
