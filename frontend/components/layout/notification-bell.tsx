@@ -2,112 +2,105 @@
 
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Bug, CheckCircle2, RefreshCw, ShieldAlert, TriangleAlert } from "lucide-react";
-import Link from "next/link";
+import { Bell, Check, CheckCircle2, ExternalLink, RefreshCw, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { useCurrentTenant } from "@/hooks/use-current-tenant";
-import { getFindings } from "@/lib/api/analytics";
+import { useSecurityUpdateReads } from "@/hooks/use-security-update-reads";
 import { formatDate } from "@/lib/format";
-import type { AnalyticsFilters } from "@/types/analytics";
-
-const filters: AnalyticsFilters = { timeframe: "12m", status: "open" };
-const priority = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+import type { SecurityFeed } from "@/lib/security-feed";
 
 export function NotificationBell() {
+  const { user } = useCurrentTenant();
+  return user ? <SecurityNotifications key={user.id} userId={user.id} /> : (
+    <Button variant="ghost" size="icon" disabled aria-label="Loading notifications"><Bell className="size-4" /></Button>
+  );
+}
+
+function SecurityNotifications({ userId }: { userId: number }) {
   const [open, setOpen] = useState(false);
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const launcherRef = useRef<HTMLButtonElement>(null);
-  const { tenantId, user } = useCurrentTenant();
-  const findingsQuery = useQuery({
-    queryKey: ["findings", tenantId, filters, "reminders", user?.id],
-    queryFn: () => getFindings(tenantId!, filters),
-    enabled: !!tenantId && !!user,
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: "always",
+  const { readIds, markRead } = useSecurityUpdateReads(userId);
+  const feed = useQuery<SecurityFeed>({
+    queryKey: ["public-security-updates"],
+    queryFn: async ({ signal }) => {
+      const response = await fetch("/api/security-updates", { signal, cache: "no-store" });
+      if (!response.ok) throw new Error("Security updates are temporarily unavailable.");
+      return response.json();
+    },
+    staleTime: 300_000, refetchInterval: 300_000, refetchOnWindowFocus: true, retry: 1,
   });
-  // Do not display cached private content after a failed permission recheck.
-  const findings = findingsQuery.isError ? [] : (findingsQuery.data ?? [])
-    .filter((finding) => finding.status === "open" &&
-      finding.verification_status !== "RESOLVED" && finding.triage_status === "ACTIVE")
-    .sort((a, b) => priority[a.severity] - priority[b.severity] ||
-      Date.parse(b.created_at) - Date.parse(a.created_at));
-  const count = findings.length;
-  const loading = !tenantId || !user || findingsQuery.isPending;
+  const items = feed.data?.items ?? [];
+  const unread = items.filter(item => !readIds.has(item.id)).length;
+  const visible = unreadOnly ? items.filter(item => !readIds.has(item.id)) : items;
+  const unavailable = feed.data?.sources.filter(source => !source.available) ?? [];
 
-  function showReminders() {
-    setOpen(true);
-    if (tenantId && user) void findingsQuery.refetch();
-  }
-
-  function closeReminders() {
+  function close() {
     setOpen(false);
     requestAnimationFrame(() => launcherRef.current?.focus());
   }
 
-  return (
-    <>
-      <Button ref={launcherRef} variant="ghost" size="icon"
-        className="relative size-9 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
-        aria-label={`Notifications${count ? `: ${count} open issues` : ""}`}
-        aria-haspopup="dialog" aria-expanded={open} onClick={showReminders}>
-        <Bell className="size-4" />
-        {count > 0 && <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-violet-600 px-1 text-[10px] leading-4 text-white" aria-hidden="true">
-          {count > 99 ? "99+" : count}
-        </span>}
-      </Button>
-      {open && <Modal title="Bug & issue reminders" onClose={closeReminders}>
-        <p className="mb-4 text-xs text-muted-foreground">
-          Open findings detected in the last 12 months. Updates every 30 seconds.
-          Issues stay here until verified as resolved or dismissed.
-        </p>
-        {loading ? <div role="status" aria-label="Loading issue reminders" className="space-y-3">
-          {[1, 2, 3].map((id) => <div key={id} className="h-20 rounded-lg bg-muted motion-safe:animate-pulse" />)}
-        </div> : findingsQuery.isError ? <div role="alert" className="space-y-3 py-6 text-center">
-          <p className="text-sm">Couldn&apos;t load issue reminders.</p>
-          <Button variant="outline" size="sm" onClick={() => void findingsQuery.refetch()} disabled={findingsQuery.isFetching}>
-            <RefreshCw className="size-4" /> Retry
-          </Button>
-        </div> : count === 0 ? <div className="py-8 text-center" role="status">
-          <CheckCircle2 className="mx-auto mb-3 size-8 text-emerald-600 dark:text-emerald-400" />
-          <p className="text-sm font-medium">No open issues</p>
-          <p className="mt-1 text-xs text-muted-foreground">No unresolved findings in this period for repositories you can access.</p>
-        </div> : <>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-sm font-medium">{count} open {count === 1 ? "issue" : "issues"}</p>
-            <Button variant="ghost" size="sm" onClick={() => void findingsQuery.refetch()} disabled={findingsQuery.isFetching}>
-              <RefreshCw className="size-3.5" /> Refresh
-            </Button>
-          </div>
-          <ul className="max-h-[50dvh] space-y-2 overflow-y-auto overscroll-contain">
-            {findings.slice(0, 50).map((finding) => {
-              const Icon = finding.category === "security" ? ShieldAlert : finding.category === "bug" ? Bug : TriangleAlert;
-              const urgent = finding.severity === "critical" || finding.severity === "high";
-              return <li key={finding.id}>
-                <Link href={`/reviews/${finding.review_id}`} onClick={() => setOpen(false)}
-                  className="block rounded-lg border p-3 transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none">
-                  <div className="flex items-center gap-2">
-                    <Icon aria-hidden="true" className={`size-4 shrink-0 ${urgent ? "text-red-600 dark:text-red-400" : "text-violet-600 dark:text-violet-400"}`} />
-                    <span className="text-xs font-semibold capitalize">{finding.severity} {finding.category}</span>
-                  </div>
-                  <p className="mt-2 break-words text-sm font-medium">{finding.repository_name} · PR #{finding.pull_request_number}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Finding #{finding.id} needs attention. Open review for details.</p>
-                  <time dateTime={finding.created_at} className="mt-2 block text-[11px] text-muted-foreground">
-                    Detected {formatDate(finding.created_at)}
-                  </time>
-                </Link>
-              </li>;
-            })}
-          </ul>
-          {count > 50 && <p className="mt-3 text-xs text-muted-foreground">Showing the 50 highest-priority issues. Open findings to see more.</p>}
-        </>}
-        <div className="mt-4 border-t pt-3">
-          <Link href="/findings" onClick={() => setOpen(false)} className="text-sm font-medium text-primary hover:underline">
-            View all findings
-          </Link>
+  return <>
+    <Button ref={launcherRef} variant="ghost" size="icon"
+      className="relative size-9 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
+      aria-label={`Notifications${unread ? `: ${unread} unread security updates` : ""}`}
+      aria-haspopup="dialog" aria-expanded={open}
+      onClick={() => { setOpen(true); void feed.refetch(); }}>
+      <Bell className="size-4" />
+      {unread > 0 && <span aria-hidden="true" className="absolute -right-1 -top-1 min-w-4 rounded-full bg-violet-600 px-1 text-[10px] leading-4 text-white">{unread > 99 ? "99+" : unread}</span>}
+    </Button>
+    {open && <Modal title="Security updates" onClose={close}>
+      <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
+        Latest public vulnerabilities, confirmed exploitation and known ransomware use from CISA and GitHub.
+        These alerts do not mean your repositories are affected.
+      </p>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div role="group" aria-label="Filter security updates" className="flex rounded-lg bg-muted p-1">
+          <Button size="sm" variant={unreadOnly ? "ghost" : "secondary"} aria-pressed={!unreadOnly} onClick={() => setUnreadOnly(false)}>All</Button>
+          <Button size="sm" variant={unreadOnly ? "secondary" : "ghost"} aria-pressed={unreadOnly} onClick={() => setUnreadOnly(true)}>Unread ({unread})</Button>
         </div>
-      </Modal>}
-    </>
-  );
+        <Button size="icon" variant="ghost" aria-label="Refresh security updates" disabled={feed.isFetching} onClick={() => void feed.refetch()}><RefreshCw className="size-4" /></Button>
+        {unread > 0 && <Button size="sm" variant="ghost" onClick={() => markRead(items.map(item => item.id))}><Check className="size-3.5" /> Mark all read</Button>}
+      </div>
+      {feed.isError && <div role="alert" className="mb-3 rounded-lg border border-amber-500/30 p-3 text-xs">
+        {items.length ? "Refresh failed. Showing previously fetched updates." : "Couldn't load security updates."}
+        <Button variant="ghost" size="sm" disabled={feed.isFetching} onClick={() => void feed.refetch()}>Retry</Button>
+      </div>}
+      {unavailable.length > 0 && <p role="status" className="mb-3 text-xs text-amber-700 dark:text-amber-400">
+        {unavailable.map(source => source.name).join(", ")} temporarily unavailable. Other sources are still shown.
+      </p>}
+      {feed.isPending ? <div role="status" aria-label="Loading security updates" className="space-y-3">
+        {[1, 2, 3].map(id => <div key={id} className="h-24 rounded-lg bg-muted motion-safe:animate-pulse" />)}
+      </div> : visible.length ? <ul className="max-h-[48dvh] space-y-3 overflow-y-auto overscroll-contain">
+        {visible.map(item => {
+          const isRead = readIds.has(item.id);
+          const label = item.kind === "ransomware" ? "Known ransomware use" : item.kind === "exploited" ? "Confirmed exploitation" : `${item.severity ?? "Unknown"} severity`;
+          return <li key={item.id} className={`rounded-xl border p-3 ${isRead ? "" : "border-violet-500/30 bg-violet-500/5"}`}>
+            <div className="flex items-start justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-violet-700 dark:text-violet-300"><ShieldAlert className="size-3.5 shrink-0" />{item.source}</span>
+              {!isRead && <span className="text-[10px] font-medium text-violet-700 dark:text-violet-300">Unread</span>}
+            </div>
+            <p className={`mt-2 text-[11px] font-semibold capitalize ${item.kind !== "advisory" || item.severity === "critical" ? "text-red-700 dark:text-red-400" : "text-muted-foreground"}`}>{label}</p>
+            <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={() => markRead([item.id])}
+              className="mt-1 block break-words text-sm font-semibold hover:text-primary focus-visible:outline-2 focus-visible:outline-primary">
+              {item.title}<ExternalLink aria-hidden="true" className="ml-1 inline size-3" /><span className="sr-only"> (opens in a new tab)</span>
+            </a>
+            <p className="mt-2 line-clamp-3 break-words text-xs leading-relaxed text-muted-foreground">{item.summary}</p>
+            <p className="mt-2 text-[10px] text-muted-foreground">{item.reference} · {item.source === "CISA KEV" ? "Added to CISA" : "Published"} <time dateTime={item.publishedAt}>{formatDate(item.publishedAt)}</time></p>
+            {!isRead && <Button variant="ghost" size="sm" className="mt-2 h-7 text-xs" onClick={() => markRead([item.id])}><Check className="size-3" />Mark as read</Button>}
+          </li>;
+        })}
+      </ul> : !feed.isError && <div className="py-8 text-center" role="status">
+        <CheckCircle2 className="mx-auto mb-3 size-8 text-emerald-600 dark:text-emerald-400" />
+        <p className="text-sm font-medium">{unreadOnly ? "You're all caught up" : "No security updates available"}</p>
+      </div>}
+      <div className="mt-4 space-y-1 border-t pt-3 text-[10px] leading-relaxed text-muted-foreground">
+        <p>Checks every 5 minutes while the app is open. Sources refresh approximately every 15 minutes. Read status is saved in this browser.</p>
+        {feed.data?.sources.map(source => source.checkedAt && <p key={source.name}>{source.name} checked: {formatDate(source.checkedAt)}</p>)}
+      </div>
+    </Modal>}
+  </>;
 }
 
