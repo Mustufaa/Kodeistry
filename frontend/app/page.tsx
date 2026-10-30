@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { Pixelify_Sans } from "next/font/google";
-import { ArrowRight, ArrowUpRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
-import { SiteFooter, projectUrl } from "@/components/marketing/site-footer";
-import { GitHubMark } from "@/components/icons/github-mark";
+import { SiteFooter } from "@/components/marketing/site-footer";
 import { BentoFeatures } from "@/components/landing/bento-features";
 import { CodeReviewAnimation } from "@/components/landing/code-review-animation";
 import { RoboticBugLoader } from "@/components/landing/robotic-bug-loader";
@@ -21,7 +20,7 @@ const steps = [
 
 export default function Page() {
   return (
-    <div className={pixelify.variable + " " + styles.landing}>
+    <div data-landing-page className={pixelify.variable + " " + styles.landing}>
       <SiteHeader />
 
       <main>
@@ -138,25 +137,9 @@ export default function Page() {
           </div>
         </section>
 
-        <section className={"dark " + styles.bottomBand} aria-labelledby="bottom-cta-heading" data-bottom-cta>
-          <div className={styles.bottomCta}>
-            <div className={styles.bugStage} data-bug-stage>
-              <RoboticBugLoader />
-            </div>
-            <div className={styles.bottomCopy}>
-              <div className={styles.sectionEyebrow}>Ready to review smarter?</div>
-              <h2 id="bottom-cta-heading" className={styles.sectionHeading}>Ship better code with AI-assisted PR reviews</h2>
-              <p>Catch bugs, identify security risks, and review pull requests with confidence.</p>
-            </div>
-            <div className={styles.bottomActions}>
-              <Link href="/register" className={styles.primaryCta}>Get Started <ArrowUpRight className="h-4 w-4" aria-hidden="true" /></Link>
-              <a href={projectUrl} target="_blank" rel="noopener noreferrer" className={styles.secondaryCta} aria-label="View on GitHub (opens in a new tab)"><GitHubMark className="h-4 w-4" /> View on GitHub</a>
-            </div>
-          </div>
-        </section>
       </main>
 
-      <SiteFooter />
+      <SiteFooter animationControl={<RoboticBugLoader />} />
     </div>
   );
 }

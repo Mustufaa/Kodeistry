@@ -32,3 +32,24 @@ export function walk(
   return { diff, turn: step / Math.max(dt, 0.0001) / 2.6 };
 }
 
+
+export type Obstacle = { left: number; right: number; top: number; bottom: number };
+
+/** Project a decoration into nearby free space without hiding it over page controls. */
+export function avoidContent(point: Point, bounds: Bounds, obstacles: Obstacle[], radius: number): Point {
+  const inside = (candidate: Point) => obstacles.some(rect =>
+    candidate.x > rect.left - radius && candidate.x < rect.right + radius &&
+    candidate.y > rect.top - radius && candidate.y < rect.bottom + radius);
+  const origin = contain(point, bounds);
+  if (!inside(origin)) return origin;
+  const candidates = obstacles.flatMap(rect => [
+    { x: rect.left - radius, y: origin.y }, { x: rect.right + radius, y: origin.y },
+    { x: origin.x, y: rect.top - radius }, { x: origin.x, y: rect.bottom + radius },
+  ]).concat([
+    { x: bounds.left, y: bounds.top }, { x: bounds.right, y: bounds.top },
+    { x: bounds.left, y: bounds.bottom }, { x: bounds.right, y: bounds.bottom },
+  ]).map(candidate => contain(candidate, bounds)).filter(candidate => !inside(candidate));
+  return candidates.reduce((nearest, candidate) =>
+    !nearest || distance(origin, candidate) < distance(origin, nearest) ? candidate : nearest,
+  undefined as Point | undefined) ?? origin;
+}

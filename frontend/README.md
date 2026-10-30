@@ -50,9 +50,11 @@ Playwright, checks all nine widths from 320px to 1920px, and saves screenshots i
 `test-results/` (gitignored). Set `TEST_BASE_URL` to test another local port;
 `TEST_BROWSER_CHANNEL=msedge` uses installed Edge instead of Chrome.
 
-The responsive suite checks footer/CTA geometry, 44px touch targets, Kody's
+The responsive suite checks footer geometry, CTA removal, 44px touch targets, Kody's
 launcher clearance and panel bounds, keyboard focus/order, internal link
 responses, animation after 15 seconds, pause/resume, reduced motion, and browser
-console/hydration errors. It does not submit authentication or chat requests.
+console/hydration errors. It also simulates WebGL failure and checks that the
+roaming bug retains a visible, moving SVG fallback. It does not submit
+authentication or chat requests.
 The unit suite exercises frame scheduling, container resizing, low-power mode,
 WebGL loss/restoration, Strict Mode cleanup, and resource disposal.

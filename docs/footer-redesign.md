@@ -1,4 +1,28 @@
-# Footer and bottom CTA redesign
+# Footer and landing animation changes
+
+## Follow-up: CTA removed and roaming restored
+
+The bottom CTA shown in the user's screenshot has been removed completely,
+including its framed robot area and buttons. The footer redesign is retained.
+The user requested that the bug roam around the landing page as before.
+
+The robot now uses viewport coordinates again and is visible from the top of
+the landing page through the footer. Its movement reserves room for the header
+and bottom assistant area. Movement steers around heading and control bounds;
+headings and controls also render above the decorative
+layer, which cannot intercept clicks. The pause control lives in the footer.
+Reduced motion and hidden-tab suspension remain supported.
+
+An inline SVG fallback stays visible while the 3D scene initializes, when WebGL
+initialization fails, and while a lost WebGL context awaits restoration. The
+fallback continues roaming after initialization failure, rather than leaving
+an empty animation layer.
+
+The responsive regression script now checks removal of the CTA, visibility at
+the top and footer, viewport containment, and simulated WebGL failure, alongside
+the existing footer, Kody, keyboard, and reduced-motion checks.
+
+## Original redesign record (superseded where noted above)
 
 Implemented locally on 30 October 2026. Existing uncommitted authentication,
 FAQ, header, and Kody changes were preserved. No deployment was performed.

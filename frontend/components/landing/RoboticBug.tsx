@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { createRobotScene } from "./robot-scene";
-import { contain, distance, viewportBounds, walk, type Point } from "./robot-motion";
+import { avoidContent, contain, distance, viewportBounds, walk, type Point, type Obstacle } from "./robot-motion";
 import styles from "./robotic-bug.module.css";
 
 type ScanTarget = { element: Element; point: Point };
@@ -19,13 +19,13 @@ export default function RoboticBug() {
     const robot = robotRef.current;
     const scan = scanRef.current;
     const label = labelRef.current;
-    const page = overlay?.parentElement;
+    const page = overlay?.closest("[data-landing-page]");
     const pause = pauseRef.current;
     if (!overlay || !robot || !scan || !label || !page || !pause) return;
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     let paused = false;
-    let visible = false;
+    const visible = true;
     const coarse = window.matchMedia("(pointer: coarse)");
     const device = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
     const lowPower = (device.deviceMemory ?? 8) <= 4 || navigator.hardwareConcurrency <= 4 || coarse.matches || Boolean(device.connection?.saveData);
@@ -44,7 +44,7 @@ export default function RoboticBug() {
     let contextLost = false;
     let renderSamples = 0;
     let renderCost = 0;
-    let bounds = viewportBounds(0, 0, size, 0);
+    let bounds = viewportBounds(window.innerWidth, window.innerHeight - 104, size, 80);
     const state = { position: { x: bounds.right, y: bounds.top + 80 }, heading: -1, speed: 0 };
     let target = { ...state.position };
     let pointer: Point | undefined;
@@ -55,6 +55,7 @@ export default function RoboticBug() {
     let scanStarted: number | undefined;
     let scanPhase = "";
     let candidates: ScanTarget[] = [];
+    let obstacles: Obstacle[] = [];
     const random = (min: number, max: number) => min + Math.random() * (max - min);
 
     function stopScan() {
@@ -65,26 +66,36 @@ export default function RoboticBug() {
       nextScan = now + random(10, 18);
     }
     function patrol() {
-      target = { x: random(bounds.left, bounds.right), y: random(bounds.top, bounds.bottom) };
+      target = avoidContent({ x: random(bounds.left, bounds.right), y: random(bounds.top, bounds.bottom) }, bounds, obstacles, size * 0.4);
       retargetAt = now + random(6, 12);
     }
     function measure() {
       dirty = false;
       const rect = overlay!.getBoundingClientRect();
-      const nextSize = Math.max(1, Math.min(200, rect.width - 16, rect.height - 16));
+      const preferredSize = window.innerWidth <= 640 || coarse.matches ? 210 : 300;
+      const nextSize = Math.max(1, Math.min(preferredSize, rect.width - 16, rect.height - 120));
       const resized = nextSize !== size || !initialized;
       size = nextSize;
       robot!.style.width = size + "px";
       robot!.style.height = size + "px";
-      bounds = viewportBounds(rect.width, rect.height, size, 0);
+      const header = page!.querySelector("header")?.getBoundingClientRect();
+      obstacles = [...page!.querySelectorAll("h1, h2, h3, a, button")]
+        .map(element => element.getBoundingClientRect())
+        .filter(rect => rect.bottom > 0 && rect.top < window.innerHeight);
+      // Leave the header and the bottom assistant/controls area clear.
+      bounds = viewportBounds(rect.width, Math.max(size + 16, rect.height - 104), size, header?.bottom ?? 0);
       state.position = contain(state.position, bounds);
       target = contain(target, bounds);
       if (resized) scene?.resize(size);
-      // Scanning is a contained decorative demo, never a target elsewhere on the page.
-      candidates = [{ element: page!, point: { x: rect.width / 2, y: rect.height / 2 } }];
+      candidates = [...page!.querySelectorAll("[data-bug-scan], [data-bug-card]")].flatMap((element) => {
+        const card = element.getBoundingClientRect();
+        if (card.bottom < 0 || card.top > window.innerHeight) return [];
+        return [{ element, point: avoidContent({ x: card.right - 20, y: card.top + 20 }, bounds, obstacles, size * 0.4) }];
+      });
     }
 
     function position() {
+      state.position = avoidContent(state.position, bounds, obstacles, size * 0.4);
       robot!.style.transform = `translate3d(${(state.position.x - size / 2).toFixed(2)}px, ${(state.position.y - size / 2).toFixed(2)}px, 0)`;
     }
     function stopLoop() {
@@ -93,13 +104,13 @@ export default function RoboticBug() {
       last = 0;
     }
     function startLoop() {
-      if (disposed || !scene || contextLost || frame || document.hidden || !visible || reduced.matches || paused) return;
+      if (disposed || !initialized || contextLost || frame || document.hidden || !visible || reduced.matches || paused) return;
       overlay!.dataset.motion = "running";
       frame = window.requestAnimationFrame(tick);
     }
     function tick(timestamp: number) {
       frame = 0;
-      if (disposed || !scene || contextLost || document.hidden || !visible || reduced.matches || paused) return;
+      if (disposed || !initialized || contextLost || document.hidden || !visible || reduced.matches || paused) return;
       if (last && timestamp - last < frameInterval - 1) {
         frame = window.requestAnimationFrame(tick);
         return;
@@ -113,7 +124,7 @@ export default function RoboticBug() {
 
       if (chasing) {
         if (scanTarget) stopScan();
-        target = contain(pointer!, bounds);
+        target = avoidContent(pointer!, bounds, obstacles, size * 0.4);
         stopped = distance(state.position, target) < size * 0.35;
         overlay!.dataset.mode = stopped ? "locked" : "following";
       } else {
@@ -158,7 +169,7 @@ export default function RoboticBug() {
       const steering = walk(state, target, bounds, stopped, dt, 1.5 * pixelsPerUnit);
       position();
       const renderStart = performance.now();
-      scene.render(dt, now, state.speed / pixelsPerUnit, state.heading, steering.diff, steering.turn);
+      scene?.render(dt, now, state.speed / pixelsPerUnit, state.heading, steering.diff, steering.turn);
       renderCost += performance.now() - renderStart;
       renderSamples++;
       // Keep walking on slower GPUs: lower resolution and frame rate instead
@@ -166,7 +177,7 @@ export default function RoboticBug() {
       if (renderSamples === 120) {
         if (renderCost / renderSamples > 24) {
           frameInterval = 1000 / 15;
-          scene.reduceQuality();
+          scene?.reduceQuality();
         }
         renderSamples = 0;
         renderCost = 0;
@@ -187,10 +198,10 @@ export default function RoboticBug() {
       if (scanTarget) { stopScan(); patrol(); }
     }
     function renderStill() {
-      if (!scene || contextLost || !visible || document.hidden) return;
+      if (!initialized || contextLost || !visible || document.hidden) return;
       measure();
       position();
-      scene.render(0, now, 0, state.heading, 0, 0);
+      scene?.render(0, now, 0, state.heading, 0, 0);
     }
     function onLayout() {
       onScroll();
@@ -216,7 +227,7 @@ export default function RoboticBug() {
         pointerAt = -100;
         stopScan();
         dirty = true;
-        if (!scene) schedule();
+        if (!initialized) schedule();
         else onMotion();
       }
     }
@@ -225,8 +236,8 @@ export default function RoboticBug() {
       contextLost = true;
       stopLoop();
       stopScan();
-      robot!.style.visibility = "hidden";
-      overlay!.dataset.renderer = "unavailable";
+      robot!.style.visibility = "visible";
+      overlay!.dataset.renderer = "fallback";
     }
     function onContextRestored() {
       contextLost = false;
@@ -237,7 +248,7 @@ export default function RoboticBug() {
     }
     function initialize() {
       idle = undefined; timer = undefined;
-      if (disposed || scene || document.hidden || !visible) return;
+      if (disposed || initialized || document.hidden) return;
       canvas = document.createElement("canvas");
       canvas.className = styles.canvas;
       canvas.setAttribute("aria-hidden", "true");
@@ -253,47 +264,47 @@ export default function RoboticBug() {
         overlay!.dataset.renderer = "webgl";
         onMotion();
       } catch {
-        // Decoration is optional: no error UI, layout shift, or blocked controls.
+        // Keep a visible, animated SVG robot when WebGL is unavailable.
         scene?.dispose();
         scene = undefined;
         canvas.remove();
-        pause!.hidden = true;
-        overlay!.dataset.renderer = "unavailable";
+        initialized = true;
+        measure();
+        patrol();
+        robot!.style.visibility = "visible";
+        overlay!.dataset.renderer = "fallback";
+        onMotion();
       }
     }
     function schedule() {
-      if (disposed || scene || idle !== undefined || timer !== undefined) return;
+      if (disposed || initialized || idle !== undefined || timer !== undefined) return;
       if ("requestIdleCallback" in window) idle = window.requestIdleCallback(initialize, { timeout: 1800 });
       else timer = setTimeout(initialize, 150);
     }
 
     const resizeObserver = new ResizeObserver(onLayout);
     resizeObserver.observe(overlay);
-    const visibilityObserver = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting;
-      if (!visible) { stopLoop(); stopScan(); }
-      else if (!scene) schedule();
-      else { dirty = true; onMotion(); }
-    });
-    visibilityObserver.observe(overlay);
     pause.hidden = reduced.matches;
     pause.addEventListener("click", onPause);
     reduced.addEventListener("change", onMotion);
-    page.addEventListener("pointermove", onPointer, { passive: true });
+    window.addEventListener("pointermove", onPointer, { passive: true });
     window.addEventListener("resize", onLayout, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     window.visualViewport?.addEventListener("resize", onLayout, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
+    measure();
+    position();
+    robot.style.visibility = "visible";
+    schedule();
     return () => {
       disposed = true;
       stopLoop();
       if (idle !== undefined) window.cancelIdleCallback(idle);
       if (timer !== undefined) clearTimeout(timer);
-      visibilityObserver.disconnect();
       resizeObserver.disconnect();
       reduced.removeEventListener("change", onMotion);
       pause.removeEventListener("click", onPause);
-      page.removeEventListener("pointermove", onPointer);
+      window.removeEventListener("pointermove", onPointer);
       window.removeEventListener("resize", onLayout);
       window.removeEventListener("scroll", onScroll);
       window.visualViewport?.removeEventListener("resize", onLayout);
@@ -311,6 +322,16 @@ export default function RoboticBug() {
     <>
     <div ref={overlayRef} className={styles.overlay} aria-hidden="true" data-robotic-bug data-renderer="pending">
       <div ref={robotRef} className={styles.robot}>
+        <svg className={styles.fallback} viewBox="0 0 200 200" aria-hidden="true" data-robot-fallback>
+          <g fill="none" stroke="#cbd0de" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M78 76 53 58 35 76M74 100 45 96 25 117M78 123 50 140 40 161M122 76 147 58 165 76M126 100 155 96 175 117M122 123 150 140 160 161" />
+            <path d="M89 57 80 35 68 30M111 57 120 35 132 30" strokeWidth="3" />
+          </g>
+          <ellipse cx="100" cy="103" rx="32" ry="48" fill="#f4f4f5" stroke="#505467" strokeWidth="3" />
+          <path d="M100 67v79M73 94h54M74 116h52" stroke="#a0a5b4" strokeWidth="2" />
+          <rect x="82" y="49" width="36" height="28" rx="12" fill="#161622" stroke="#cbd0de" strokeWidth="3" />
+          <path d="M90 60h5m10 0h5" stroke="#b9aaff" strokeWidth="4" strokeLinecap="round" />
+        </svg>
         <div ref={scanRef} className={styles.scan} hidden>
           <b ref={labelRef}>SCANNING CODE...</b>
           <small>Decorative demo</small>

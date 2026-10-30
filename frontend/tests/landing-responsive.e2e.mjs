@@ -12,27 +12,24 @@ const intersects = (a, b) => a.x < b.x + b.width && a.x + a.width > b.x && a.y <
 try {
   await page.goto(base, { waitUntil: "networkidle", timeout: 120000 });
   const footer = page.getByRole("contentinfo", { name: "Kodeistry footer" });
-  const cta = page.locator("[data-bottom-cta]");
-  const stage = page.locator("[data-bug-stage]");
+  assert.equal(await page.locator("[data-bottom-cta]").count(), 0);
+  assert.equal(await page.getByText("Ship better code with AI-assisted PR reviews").count(), 0);
   const robot = page.locator("[data-robotic-bug]");
   const launcher = page.getByRole("button", { name: "Open Kody assistant" });
   for (const width of [320, 360, 375, 390, 430, 768, 1024, 1366, 1920]) {
     await page.setViewportSize({ width, height: 900 });
-    await stage.scrollIntoViewIfNeeded();
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
     await page.waitForFunction(() => document.querySelector("[data-robotic-bug]")?.dataset.renderer === "webgl");
-    const stageBox = await stage.boundingBox();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const robotBox = await robot.boundingBox();
     const canvasBox = await robot.locator("canvas").boundingBox();
     assert.ok(canvasBox.x >= robotBox.x - 1 && canvasBox.y >= robotBox.y - 1 && canvasBox.x + canvasBox.width <= robotBox.x + robotBox.width + 1 && canvasBox.y + canvasBox.height <= robotBox.y + robotBox.height + 1, `${width}: rendered robot stays within its container`);
-    const headingBox = await page.locator("#bottom-cta-heading").boundingBox();
-    assert.ok(!intersects(stageBox, headingBox), `${width}: animation and heading are separate`);
-    assert.ok(width >= 1024 ? headingBox.x < stageBox.x : stageBox.y + stageBox.height <= headingBox.y, `${width}: CTA order`);
-    for (const link of await cta.locator("a").all()) {
-      const box = await link.boundingBox();
-      assert.ok(!intersects(stageBox, box), `${width}: animation and CTA actions are separate`);
-    }
-    // Check the entire footer/CTA, including scroll positions where the floating widget could cover a link.
-    const controls = [...await cta.locator("a, button:not([hidden])").all(), ...await footer.locator("a").all()];
+    assert.equal(await robot.locator("canvas").isVisible(), true);
+    const heading = await page.locator("h1").boundingBox();
+    const footprint = { x: canvasBox.x + canvasBox.width * .1 + 1, y: canvasBox.y + canvasBox.height * .1 + 1, width: canvasBox.width * .8 - 2, height: canvasBox.height * .8 - 2 };
+    assert.ok(!intersects(footprint, heading), `${width}: robot steers around the hero heading`);
+    // The roaming decoration remains visible at the top and beside the footer.
+    const controls = await footer.locator("a").all();
     for (const link of controls) {
       await link.scrollIntoViewIfNeeded();
       const box = await link.boundingBox();
@@ -42,13 +39,14 @@ try {
     }
     const overflow = await page.evaluate(() => ({
       page: document.documentElement.scrollWidth > innerWidth,
-      elements: [...document.querySelectorAll("footer *, [data-bottom-cta] *")].filter(el => {
+      elements: [...document.querySelectorAll("footer *")].filter(el => {
         if (el.closest("[data-robotic-bug]") || el.tagName === "svg" || el.closest("svg")) return false;
         const box = el.getBoundingClientRect();
         return box.width > 0 && (box.left < -1 || box.right > innerWidth + 1 || el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).display !== "inline");
       }).map(el => el.tagName + "." + el.className)
     }));
     assert.deepEqual(overflow, { page: false, elements: [] }, `${width}: no horizontal overflow or clipped text`);
+    assert.equal(await robot.locator("canvas").isVisible(), true);
     await launcher.click();
     const panel = page.getByRole("dialog", { name: "Kody assistant" });
     await panel.waitFor({ state: "visible" });
@@ -79,7 +77,7 @@ try {
   await page.emulateMedia({ colorScheme: "dark" });
   assert.match(await footer.textContent(), new RegExp(String(new Date().getFullYear())));
   await page.setViewportSize({ width: 1366, height: 900 });
-  await stage.scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await page.mouse.move(0, 0);
   const pose = () => robot.locator("canvas").evaluate(el => el.parentElement.style.transform);
   await page.waitForTimeout(15000);
@@ -96,11 +94,28 @@ try {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.waitForFunction(() => document.querySelector("[data-robotic-bug]")?.dataset.motion === "running");
   await mkdir("test-results", { recursive: true });
-  await cta.screenshot({ path: "test-results/cta-desktop.png" });
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await page.screenshot({ path: "test-results/roaming-desktop.png" });
   await footer.screenshot({ path: "test-results/footer-desktop.png" });
   await page.setViewportSize({ width: 375, height: 900 });
-  await cta.screenshot({ path: "test-results/cta-mobile.png" });
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await page.screenshot({ path: "test-results/roaming-mobile.png" });
   await footer.screenshot({ path: "test-results/footer-mobile.png" });
+  // Simulate unavailable WebGL: the bug must still appear and move.
+  const fallbackPage = await browser.newPage();
+  await fallbackPage.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (kind, ...args) {
+      if (String(kind).includes("webgl")) return null;
+      return original.call(this, kind, ...args);
+    };
+  });
+  await fallbackPage.goto(base, { waitUntil: "networkidle" });
+  await fallbackPage.waitForFunction(() => document.querySelector("[data-robotic-bug]")?.dataset.renderer === "fallback");
+  assert.equal(await fallbackPage.locator("[data-robot-fallback]").isVisible(), true);
+  const fallbackPose = await fallbackPage.locator("[data-robot-fallback]").evaluate(el => el.parentElement.style.transform);
+  await fallbackPage.waitForFunction(previous => document.querySelector("[data-robot-fallback]").parentElement.style.transform !== previous, fallbackPose);
+  await fallbackPage.close();
   assert.deepEqual(errors, [], "No browser console or hydration errors");
   console.log("PASS keyboard order/focus, internal links, 15-second animation, pause/resume, reduced motion, console and hydration checks");
 } finally {

@@ -48,14 +48,14 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
     };
   }
   const document = { ...events(), hidden: false, createElement: element };
-  const stageRect = { left: 20, top: 400, width: Math.min(500, width - 108), height: 214 };
+  const stageRect = { left: 0, top: 0, width, height: 900 };
   const observers = { resize: undefined, visibility: undefined, connected: 0 };
   const rect = { left: width - 240, right: width - 30, top: 210, bottom: 450 };
   const card = { isConnected: true, getBoundingClientRect: () => rect };
   const page = {
     ...events(), isConnected: true,
     querySelector: () => ({ getBoundingClientRect: () => ({ bottom: 80 }) }),
-    querySelectorAll: () => [card],
+    querySelectorAll: (selector) => selector.includes("data-bug") ? [card] : [],
   };
   const React = {
     useRef: () => { const ref = { current: null }; refs.push(ref); return ref; },
@@ -109,6 +109,7 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
   visit(tree);
   const [overlay, robot, scan, label, pause] = refs.map((ref) => ref.current);
   overlay.parentElement = page;
+  overlay.closest = () => page;
   overlay.getBoundingClientRect = () => ({ ...stageRect, right: stageRect.left + stageRect.width, bottom: stageRect.top + stageRect.height });
   function start() { cleanup = effect(); }
   function flushIdle() { const callbacks = [...idle.values()]; idle.clear(); callbacks.forEach((fn) => fn()); }
@@ -151,7 +152,7 @@ test("Patrol moves, follows a mouse, then resumes patrol after inactivity", () =
   const app = harness();
   app.advance(1); const initial = app.robot.style.transform;
   app.advance(2); assert.notEqual(app.robot.style.transform, initial);
-  app.page.dispatch("pointermove", { pointerType: "mouse", clientX: 180, clientY: 500 });
+  app.window.dispatch("pointermove", { pointerType: "mouse", clientX: 180, clientY: 500 });
   app.advance(0.2); assert.ok(["following", "locked"].includes(app.overlay.dataset.mode));
   app.advance(3); assert.notEqual(app.overlay.dataset.mode, "following");
   app.assertClean();
@@ -166,13 +167,13 @@ test("Decorative scan visits all three phases and scrolling cancels it", () => {
   app.assertClean();
 });
 for (const width of [320, 360, 375, 390, 430, 768, 1024, 1366, 1920]) {
-  test("CTA container containment and touch scrolling at width " + width, () => {
+  test("Viewport containment and touch scrolling at width " + width, () => {
     const app = harness({ width, coarse: width < 640 });
     app.advance(1);
-    app.page.dispatch("pointermove", { pointerType: "touch", clientX: 10, clientY: 10 });
+    app.window.dispatch("pointermove", { pointerType: "touch", clientX: 10, clientY: 10 });
     app.advance(1);
     assert.notEqual(app.overlay.dataset.mode, "following");
-    const size = Math.min(200, app.stageRect.width - 16, app.stageRect.height - 16);
+    const size = width <= 640 ? 210 : 300;
     assert.equal(app.stats.sizes.at(-1), size);
     for (let i = 0; i < 60; i++) {
       app.advance(1);
@@ -180,8 +181,8 @@ for (const width of [320, 360, 375, 390, 430, 768, 1024, 1366, 1920]) {
       assert.ok(x >= 0 && x + size <= app.stageRect.width, "canvas stays horizontally contained");
       assert.ok(y >= 0 && y + size <= app.stageRect.height, "canvas stays vertically contained");
     }
-    app.stageRect.width = 212; app.observers.resize(); app.advance();
-    assert.equal(app.stats.sizes.at(-1), 196);
+    app.stageRect.width = 320; app.window.innerWidth = 320; app.observers.resize(); app.advance();
+    assert.equal(app.stats.sizes.at(-1), 210);
     app.assertClean();
   });
 }
@@ -213,7 +214,7 @@ test("Reduced motion renders a still pose and changing preference restarts safel
   assert.equal(app.overlay.dataset.motion, "paused");
   app.assertClean();
 });
-test("Pause control and offscreen visibility stop work and resume beyond ten seconds", () => {
+test("Pause control resumes and scrolling keeps the roaming robot alive beyond ten seconds", () => {
   const app = harness(); app.advance(12);
   app.pause.dispatch("click");
   const rendered = app.stats.rendered;
@@ -222,21 +223,21 @@ test("Pause control and offscreen visibility stop work and resume beyond ten sec
   assert.equal(app.stats.rendered, rendered);
   app.pause.dispatch("click"); app.advance();
   assert.ok(app.stats.rendered > rendered);
-  app.observers.visibility([{ isIntersecting: false }]);
-  const hiddenRendered = app.stats.rendered;
-  app.advance(20);
-  assert.equal(app.frames.size, 0);
-  assert.equal(app.stats.rendered, hiddenRendered);
-  app.observers.visibility([{ isIntersecting: true }]); app.advance(20);
-  assert.ok(app.stats.rendered > hiddenRendered);
+  const beforeScroll = app.stats.rendered;
+  app.window.dispatch("scroll"); app.advance(20);
+  assert.ok(app.stats.rendered > beforeScroll);
   assert.ok(app.frames.size > 0);
   app.assertClean();
 });
-test("WebGL failure degrades gracefully", () => {
+test("WebGL failure keeps a visible moving fallback", () => {
   const app = harness({ failWebGL: true }); app.advance();
   assert.equal(app.robot.children.length, 0);
-  assert.equal(app.frames.size, 0);
+  assert.ok(app.frames.size > 0);
   assert.equal(app.stats.created, 0);
+  assert.equal(app.robot.style.visibility, "visible");
+  assert.equal(app.overlay.dataset.renderer, "fallback");
+  const initial = app.robot.style.transform; app.advance(3);
+  assert.notEqual(app.robot.style.transform, initial);
   app.assertClean();
 });
 test("Constrained devices keep animating at lower quality", () => {
@@ -251,7 +252,7 @@ test("Slow GPUs lower quality while continuing to patrol and follow the mouse", 
   assert.ok(app.frames.size > 0);
   assert.ok(app.stats.reducedQuality > 0);
   const position = app.robot.style.transform;
-  app.page.dispatch("pointermove", { pointerType: "mouse", clientX: 180, clientY: 500 });
+  app.window.dispatch("pointermove", { pointerType: "mouse", clientX: 180, clientY: 500 });
   app.advance(1);
   assert.equal(app.overlay.dataset.mode, "following");
   assert.notEqual(app.robot.style.transform, position);
@@ -263,6 +264,8 @@ test("Context loss stops animation until restoration", () => {
   canvas.dispatch("webglcontextlost", { preventDefault() {} });
   app.advance();
   assert.equal(app.frames.size, 0);
+  assert.equal(app.overlay.dataset.renderer, "fallback");
+  assert.equal(app.robot.style.visibility, "visible");
   app.document.dispatch("visibilitychange"); app.advance();
   assert.equal(app.frames.size, 0);
   canvas.dispatch("webglcontextrestored"); app.advance();
@@ -346,11 +349,22 @@ test("Only the new robot is mounted by the landing page", () => {
 test("Landscape touch devices use the larger mobile size and keep moving through scroll", () => {
   const app = harness({ coarse: true, width: 844 });
   app.advance();
-  assert.equal(app.stats.sizes.at(-1), 198);
-  assert.equal(app.robot.style.width, "198px");
+  assert.equal(app.stats.sizes.at(-1), 210);
+  assert.equal(app.robot.style.width, "210px");
   const rendered = app.stats.rendered;
   app.window.dispatch("scroll"); app.advance();
   assert.ok(app.stats.rendered > rendered);
   app.assertClean();
 });
 
+
+test("Roaming steers around a heading without hiding or leaving the viewport", () => {
+  const { avoidContent } = evaluate("robot-motion.ts", {});
+  const bounds = { left: 105, right: 270, top: 140, bottom: 680 };
+  const heading = { left: 16, right: 359, top: 200, bottom: 320 };
+  const point = avoidContent({ x: 230, y: 240 }, bounds, [heading], 84);
+  assert.ok(point.y <= 116 || point.y >= 404);
+  assert.ok(point.x >= bounds.left && point.x <= bounds.right && point.y >= bounds.top && point.y <= bounds.bottom);
+  const free = avoidContent({ x: 230, y: 430 }, bounds, [heading], 84);
+  assert.equal(free.x, 230); assert.equal(free.y, 430);
+});
