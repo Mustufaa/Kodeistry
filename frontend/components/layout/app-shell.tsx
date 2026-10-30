@@ -17,7 +17,6 @@ import {
   Settings,
   ShieldCheck,
   Bell,
-  MessageSquare,
   ScanSearch,
   Users,
   X,
@@ -30,7 +29,6 @@ import { useCurrentTenant } from "@/hooks/use-current-tenant";
 import { logout } from "@/lib/api/auth";
 import { RepositoryAccessGate } from "@/components/layout/repository-access-gate";
 import { NotificationBell } from "@/components/layout/notification-bell";
-import { TeamChatDrawer } from "@/components/layout/team-chat-drawer";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -202,7 +200,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
             {tenants.length > 1 ? <label className="min-w-0"><span className="sr-only">Active team</span><select aria-label="Active team" value={tenantId ?? ""} disabled={isSwitching} onChange={(event) => setTenantId(Number(event.target.value))} className="h-9 max-w-[40vw] rounded-lg border bg-background px-2 text-sm sm:max-w-64">{tenants.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label> : null}
             {switchError ? <span role="alert">Could not switch team. Try again.</span> : null}
-            <TeamChatDrawer />
             <NotificationBell />
           </div>
         </header>
