@@ -53,7 +53,7 @@ function SecurityNotifications({ userId }: { userId: number }) {
     </Button>
     {open && <Modal title="Security updates" onClose={close}>
       <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
-        Latest public vulnerabilities, confirmed exploitation and known ransomware use from CISA and GitHub.
+        Latest public vulnerabilities, confirmed exploitation and known ransomware use from CISA.
         These alerts do not mean your repositories are affected.
       </p>
       <div className="mb-4 flex flex-wrap items-center gap-2">

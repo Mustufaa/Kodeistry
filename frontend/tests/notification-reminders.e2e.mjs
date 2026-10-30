@@ -11,9 +11,8 @@ try {
     const ready = new Promise(resolve => { release = resolve; });
     let items = [
       { id: "cisa:CVE-2026-12345", title: "Vendor ransomware vulnerability", summary: "Confirmed public advisory.", source: "CISA KEV", kind: "ransomware", reference: "CVE-2026-12345", publishedAt: "2026-10-29T12:00:00Z", severity: null, url: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?search_api_fulltext=CVE-2026-12345" },
-      { id: "github:GHSA-abcd-1234-efgh", title: "<script>alert(1)</script> Package issue", summary: "Newly published advisory.", source: "GitHub Advisories", kind: "advisory", reference: "GHSA-abcd-1234-efgh", severity: "high", publishedAt: "2026-10-29T11:00:00Z", url: "https://github.com/advisories/GHSA-abcd-1234-efgh" },
+      { id: "cisa:CVE-2026-99999", title: "<script>alert(1)</script> Package issue", summary: "Public advisory.", source: "CISA KEV", kind: "exploited", reference: "CVE-2026-99999", severity: null, publishedAt: "2026-10-29T11:00:00Z", url: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?search_api_fulltext=CVE-2026-99999" },
     ];
-    let partial = false;
     await page.route("**/api/**", async route => {
       const path = new URL(route.request().url()).pathname;
       let json = [];
@@ -24,7 +23,7 @@ try {
       else if (path.endsWith("/security-updates")) {
         await ready;
         if (failure) return route.fulfill({ status: 503, json: { items: [], sources: [] } });
-        json = { items, sources: [{ name: "CISA KEV", available: true, checkedAt: "2026-10-30T12:00:00Z" }, { name: "GitHub Advisories", available: !partial, checkedAt: partial ? null : "2026-10-30T12:00:00Z" }] };
+        json = { items, sources: [{ name: "CISA KEV", available: true, checkedAt: "2026-10-30T12:00:00Z" }] };
       } else if (path.endsWith("/findings")) throw new Error("Notification bell must not request repository findings");
       await route.fulfill({ json });
     });
@@ -59,9 +58,8 @@ try {
     await dialog.getByRole("button", { name: "Refresh security updates" }).click();
     await expect(dialog.getByRole("alert")).toContainText("Refresh failed.", { timeout: 15000 });
     failure = false;
-    partial = true;
     await dialog.getByRole("button", { name: "Retry" }).click();
-    await expect(dialog.getByText(/GitHub Advisories temporarily unavailable/)).toBeVisible();
+    await expect(dialog.getByRole("alert")).toHaveCount(0);
     userId = 2;
     await page.reload();
     await expect(bell).toHaveAccessibleName("Notifications: 2 unread security updates");
@@ -73,7 +71,7 @@ try {
     items = [];
     await bell.click();
     await expect(dialog.getByText("No security updates available", { exact: true })).toBeVisible();
-    console.log(`PASS ${width}px: feed, loading, read/unread persistence, account isolation, safe text/links, keyboard, overflow, error/retry, partial source, empty state`);
+    console.log(`PASS ${width}px: feed, loading, read/unread persistence, account isolation, safe text/links, keyboard, overflow, error/retry, empty state`);
     await page.close();
   }
 } finally {
