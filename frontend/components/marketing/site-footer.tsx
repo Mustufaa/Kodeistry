@@ -30,7 +30,6 @@ export function SiteFooter() {
             <nav key={title} aria-label={"Footer " + title} className={styles.group}>
               <h2>{title}</h2>
               <ul>
-                {title === "Resources" && <li className={styles.unavailable}>Documentation <span>Coming soon</span></li>}
                 {links.map(([label, href]) => <li key={label}><Link href={href}>{label}</Link></li>)}
               </ul>
             </nav>

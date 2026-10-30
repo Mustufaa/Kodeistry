@@ -59,7 +59,6 @@ export default function RegisterPage() {
       <form onSubmit={handleSubmit} className="space-y-2">
         <Button
           type="button"
-          variant="outline"
           className="w-full"
           onClick={() => {
             window.location.assign((process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api") + "/auth/github");

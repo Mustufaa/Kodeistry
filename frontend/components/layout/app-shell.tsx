@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ChevronsLeft,
@@ -16,8 +16,9 @@ import {
   Menu,
   Settings,
   ShieldCheck,
+  Bell,
+  MessageSquare,
   ScanSearch,
-  Sparkles,
   Users,
   X,
 } from "lucide-react";
@@ -28,6 +29,8 @@ import { Button } from "@/components/ui/button";
 import { useCurrentTenant } from "@/hooks/use-current-tenant";
 import { logout } from "@/lib/api/auth";
 import { RepositoryAccessGate } from "@/components/layout/repository-access-gate";
+import { NotificationBell } from "@/components/layout/notification-bell";
+import { TeamChatDrawer } from "@/components/layout/team-chat-drawer";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -35,12 +38,11 @@ const navItems = [
   { href: "/repositories", label: "Repositories", icon: FolderGit2 },
   { href: "/reviews", label: "Reviews", icon: ShieldCheck },
   { href: "/findings", label: "Findings", icon: Bug },
-  { href: "/secret-scanner", label: "Secret Scanner", icon: ScanSearch },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/team", label: "Team Members", icon: Users },
   { href: "/settings/integrations/github", label: "GitHub", icon: GitBranch },
+  { href: "/secret-scanner", label: "Secret Scanner", icon: ScanSearch },
 ] as const;
-
 function isActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -200,8 +202,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
             {tenants.length > 1 ? <label className="min-w-0"><span className="sr-only">Active team</span><select aria-label="Active team" value={tenantId ?? ""} disabled={isSwitching} onChange={(event) => setTenantId(Number(event.target.value))} className="h-9 max-w-[40vw] rounded-lg border bg-background px-2 text-sm sm:max-w-64">{tenants.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label> : null}
             {switchError ? <span role="alert">Could not switch team. Try again.</span> : null}
-            <Sparkles className="size-3.5 text-violet-600 dark:text-violet-400" />
-            AI code review
+            <TeamChatDrawer />
+            <NotificationBell />
           </div>
         </header>
         <main className="mx-auto w-full max-w-[1480px] p-4 sm:p-6 lg:p-8">{isSwitching ? <p role="status">Switching team...</p> : <RepositoryAccessGate>{children}</RepositoryAccessGate>}</main>
