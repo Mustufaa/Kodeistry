@@ -1,18 +1,18 @@
 ﻿.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
+  position: absolute;
+  inset: 0 0 44px;
+  z-index: 0;
   overflow: clip;
   pointer-events: none;
   user-select: none;
-  contain: layout style;
+  contain: layout paint style;
 }
 .robot {
   position: absolute;
   left: 0;
   top: 0;
-  width: 300px;
-  height: 300px;
+  width: 200px;
+  height: 200px;
   visibility: hidden;
   will-change: transform;
 }
@@ -55,4 +55,21 @@
   box-shadow: 0 0 9px #ff6262;
 }
 @keyframes sweep { to { transform: translateY(-18px); opacity: .2; } }
-@media (max-width: 640px) { .robot { width: 210px; height: 210px; } .scan { bottom: -5px; } }
+.pause {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  min-height: 44px;
+  border-top: 1px solid #2c253d;
+  background: #15111d;
+  color: #c8bfff;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pause[hidden] { display: none; }
+.pause:focus-visible { outline: 2px solid #b6aaff; outline-offset: -4px; }
+@media (prefers-reduced-motion: reduce) {
+  .scan::before { animation: none; }
+  .robot { will-change: auto; }
+}

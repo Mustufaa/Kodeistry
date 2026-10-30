@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { FormEvent, KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { RotateCcw, Send, Trash2, X } from "lucide-react";
 
@@ -75,7 +76,10 @@ function KodyRobot() {
 }
 
 export function KodyAssistant() {
+  const pathname = usePathname();
   const { preferences } = usePreferences();
+  // Keep compact authentication forms clear of the floating assistant.
+  if (pathname === "/login" || pathname === "/register") return null;
   return preferences.showAssistant ? <KodyAssistantContent showGreeting={preferences.showGreeting} /> : null;
 }
 
@@ -171,7 +175,7 @@ function KodyAssistantContent({ showGreeting }: { showGreeting: boolean }) {
 
   return (
     <div className={styles.root}>
-      <aside id="kody-panel" className={styles.panel} data-open={open} role="dialog" aria-label="Kody assistant" aria-hidden={!open}>
+      <aside id="kody-panel" className={styles.panel} data-open={open} role="dialog" aria-label="Kody assistant" aria-hidden={!open} inert={!open}>
         <header className={styles.header}>
           <span className={styles.avatar} aria-hidden="true"><KodyRobot /></span>
           <span className={styles.identity}><strong>Kody</strong><small>Your Kodeistry Assistant</small></span>

@@ -1,0 +1,43 @@
+.footer {
+  background: #09090b;
+  color: #b6b6c2;
+  border-top: 1px solid #292531;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.inner {
+  max-width: 1280px;
+  margin-inline: auto;
+  /* Keep navigation outside the floating assistant's lane at every scroll position. */
+  padding: 52px max(88px, calc(env(safe-area-inset-right) + 88px)) calc(32px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+}
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 20px; }
+.grid > * { min-width: 0; }
+.brand { grid-column: 1 / -1; }
+.logo { min-height: 44px; color: #f4f4f5; }
+.logo > span:last-child { font: 600 25px var(--font-voxel), ui-monospace, monospace; }
+.brand p { max-width: 310px; margin-block: 18px; }
+.socials { display: flex; flex-wrap: wrap; gap: 8px; }
+.socials a { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #34303f; color: #d8d2ee; background: #131116; }
+.socials svg { width: 18px; height: 18px; }
+.group h2 { margin-bottom: 12px; color: #f4f4f5; font-weight: 600; font-size: 14px; }
+.group h2::before { content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 8px; background: #a899ff; }
+.group a { display: flex; align-items: center; min-height: 44px; width: fit-content; min-width: 44px; padding-block: 9px; }
+.unavailable { padding-block: 9px; }
+.unavailable span { display: block; color: #aaa0c3; font-size: 12px; }
+.footer a { transition: color .15s, border-color .15s; }
+.footer a:hover { color: #c2b6ff; border-color: #a899ff; }
+.footer a:focus-visible { outline: 2px solid #b6aaff; outline-offset: 4px; }
+.bottom { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 32px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #292531; }
+.signature { color: #aaa0c3; font-family: var(--font-voxel), ui-monospace, monospace; }
+@media (min-width: 768px) {
+  .inner { padding-left: 32px; padding-right: max(112px, calc(env(safe-area-inset-right) + 112px)); }
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+}
+@media (min-width: 1024px) {
+  .inner { padding-top: 64px; }
+  .grid { grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); }
+  .brand { grid-column: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .footer a { transition: none; } }

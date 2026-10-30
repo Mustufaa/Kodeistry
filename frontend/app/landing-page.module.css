@@ -34,14 +34,11 @@
   box-shadow: 0 3px 0 color-mix(in srgb, var(--primary) 9%, transparent);
 }
 
-.footerLinks { min-width: 0; padding-inline-end: 96px; }
-.navLinks a,
-.footerLinks a {
+.navLinks a {
   transition: color .15s;
 }
 
-.navLinks a:hover,
-.footerLinks a:hover { color: var(--primary); }
+.navLinks a:hover { color: var(--primary); }
 
 .headerCta {
   display: inline-flex;
@@ -278,7 +275,7 @@
   background: color-mix(in srgb, var(--card) 65%, var(--background));
 }
 
-.siteFooter { color: var(--muted-foreground); }
+
 
 @media (max-width: 1279px) {
   .heroCopy { max-width: 750px; }
@@ -286,7 +283,6 @@
 }
 
 @media (max-width: 640px) {
-  .footerLinks { padding-inline-end: 84px; }
   .hero { padding-top: 24px; padding-bottom: 68px; }
   .heroTitle { font-size: clamp(41px, 11vw, 57px); }
   .heroDescription { margin-top: 20px; }
@@ -318,13 +314,7 @@
   .heroPreviewTrack { padding: 18px; }
 }
 
-@media (max-width: 360px) {
-  .footerLinks { padding-inline-end: 80px; }
-}
 
-/* Interactive content stays above the decorative robot (z-index: 20). */
-.landing :is(a, button, input, select, textarea, [role="button"]) { position: relative; z-index: 30; }
-.heroCopy { z-index: auto; }
 
 /* Keep the full desktop hero inside the first viewport, allowing for the nav. */
 @media (min-width: 1024px) {
@@ -345,4 +335,44 @@
   .heroDescription { margin-top: 16px; font-size: 15px; line-height: 1.5; }
   .heroActions { margin-top: 18px; gap: 12px; }
   .heroPreviewTrack { padding: 8px; }
+}
+
+/* Separate grid cells keep the robot away from copy and actions. */
+.bottomBand { background: #0e0c13; color: #f4f4f5; }
+.bottomCta {
+  display: grid;
+  grid-template-areas: "visual" "copy" "actions";
+  gap: 28px;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding: 32px max(88px, calc(env(safe-area-inset-right) + 88px)) 56px max(20px, env(safe-area-inset-left));
+}
+.bottomCta > * { min-width: 0; }
+.bugStage {
+  grid-area: visual;
+  position: relative;
+  isolation: isolate;
+  height: 260px;
+  overflow: hidden;
+  contain: layout paint;
+  border: 1px solid #2c253d;
+  background: radial-gradient(ellipse at center, #8b78ff18, transparent 70%), repeating-linear-gradient(90deg, #a899ff06 0 1px, transparent 1px 24px);
+}
+.bottomCopy { grid-area: copy; align-self: center; overflow-wrap: anywhere; }
+.bottomCopy p { max-width: 540px; margin-top: 20px; color: #b6b6c2; font-size: 16px; line-height: 1.7; }
+.bottomCopy .sectionEyebrow { color: #b6aaff; }
+.bottomCopy .sectionHeading { font-size: clamp(30px, 3.3vw, 44px); line-height: 1.15; }
+.bottomActions { grid-area: actions; display: grid; gap: 16px; padding-right: 6px; }
+.bottomActions a { min-height: 48px; }
+.bottomActions svg { flex-shrink: 0; }
+@media (min-width: 768px) {
+  .bottomCta { padding-left: 32px; padding-right: max(112px, calc(env(safe-area-inset-right) + 112px)); }
+  .bottomActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .bottomCta { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-areas: "copy visual" "copy actions"; gap: 24px 48px; padding-block: 56px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .primaryCta, .secondaryCta { transition: none; }
+  .primaryCta:hover, .secondaryCta:hover, .primaryCta:active, .secondaryCta:active { transform: none; }
 }

@@ -48,9 +48,12 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
     };
   }
   const document = { ...events(), hidden: false, createElement: element };
+  const stageRect = { left: 20, top: 400, width: Math.min(500, width - 108), height: 214 };
+  const observers = { resize: undefined, visibility: undefined, connected: 0 };
   const rect = { left: width - 240, right: width - 30, top: 210, bottom: 450 };
   const card = { isConnected: true, getBoundingClientRect: () => rect };
   const page = {
+    ...events(), isConnected: true,
     querySelector: () => ({ getBoundingClientRect: () => ({ bottom: 80 }) }),
     querySelectorAll: () => [card],
   };
@@ -75,11 +78,21 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
   math.random = () => 0.5;
   const motion = evaluate("robot-motion.ts", {}, { Math: math });
   const Component = evaluate("RoboticBug.tsx", {
-    react: React, "react/jsx-runtime": { jsx, jsxs: jsx },
+    react: React, "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "fragment" },
     "./robot-scene": scene, "./robot-motion": motion,
     "./robotic-bug.module.css": { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) },
   }, { window, document, navigator: { hardwareConcurrency: 8, deviceMemory: constrained ? 1 : 8 },
-    performance: { now: () => clock }, Math: math, setTimeout, clearTimeout }).default;
+    performance: { now: () => clock }, Math: math, setTimeout, clearTimeout,
+    ResizeObserver: class {
+      constructor(callback) { observers.resize = callback; }
+      observe() { observers.connected++; }
+      disconnect() { observers.connected--; }
+    },
+    IntersectionObserver: class {
+      constructor(callback) { observers.visibility = callback; }
+      observe() { observers.connected++; observers.visibility([{ isIntersecting: true }]); }
+      disconnect() { observers.connected--; }
+    } }).default;
   const tree = Component();
   function visit(node) {
     if (Array.isArray(node)) return node.forEach(visit);
@@ -94,13 +107,14 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
     visit(node.props?.children);
   }
   visit(tree);
-  const [overlay, robot, scan, label] = refs.map((ref) => ref.current);
+  const [overlay, robot, scan, label, pause] = refs.map((ref) => ref.current);
   overlay.parentElement = page;
+  overlay.getBoundingClientRect = () => ({ ...stageRect, right: stageRect.left + stageRect.width, bottom: stageRect.top + stageRect.height });
   function start() { cleanup = effect(); }
   function flushIdle() { const callbacks = [...idle.values()]; idle.clear(); callbacks.forEach((fn) => fn()); }
   start();
   return {
-    stats, window, document, media, overlay, robot, scan, label, rect, frames, idle, start, flushIdle,
+    stats, window, document, media, overlay, robot, scan, label, pause, rect, stageRect, observers, page, frames, idle, start, flushIdle,
     cleanup: () => cleanup(),
     advance(seconds = 1) {
       flushIdle();
@@ -115,9 +129,10 @@ function harness({ width = 1280, reduced = false, coarse = false, failWebGL = fa
       cleanup();
       assert.equal(frames.size, 0);
       assert.equal(idle.size, 0);
-      assert.equal(window.count() + document.count() + media.count(), 0);
+      assert.equal(window.count() + document.count() + media.count() + page.count() + pause.count(), 0);
       assert.equal(robot.children.length, 0);
       assert.equal(stats.created, stats.disposed);
+      assert.equal(observers.connected, 0);
     },
   };
 }
@@ -136,8 +151,8 @@ test("Patrol moves, follows a mouse, then resumes patrol after inactivity", () =
   const app = harness();
   app.advance(1); const initial = app.robot.style.transform;
   app.advance(2); assert.notEqual(app.robot.style.transform, initial);
-  app.window.dispatch("pointermove", { pointerType: "mouse", clientX: 180, clientY: 650 });
-  app.advance(0.2); assert.equal(app.overlay.dataset.mode, "following");
+  app.page.dispatch("pointermove", { pointerType: "mouse", clientX: 180, clientY: 500 });
+  app.advance(0.2); assert.ok(["following", "locked"].includes(app.overlay.dataset.mode));
   app.advance(3); assert.notEqual(app.overlay.dataset.mode, "following");
   app.assertClean();
 });
@@ -150,23 +165,23 @@ test("Decorative scan visits all three phases and scrolling cancels it", () => {
   app.advance(1); assert.notEqual(app.robot.style.transform, position);
   app.assertClean();
 });
-for (const width of [320, 390, 820, 1440]) {
-  test("Viewport containment and touch scrolling at width " + width, () => {
+for (const width of [320, 360, 375, 390, 430, 768, 1024, 1366, 1920]) {
+  test("CTA container containment and touch scrolling at width " + width, () => {
     const app = harness({ width, coarse: width < 640 });
     app.advance(1);
-    app.window.dispatch("pointermove", { pointerType: "touch", clientX: 10, clientY: 10 });
+    app.page.dispatch("pointermove", { pointerType: "touch", clientX: 10, clientY: 10 });
     app.advance(1);
     assert.notEqual(app.overlay.dataset.mode, "following");
-    const size = width <= 640 ? 210 : 300;
+    const size = Math.min(200, app.stageRect.width - 16, app.stageRect.height - 16);
     assert.equal(app.stats.sizes.at(-1), size);
     for (let i = 0; i < 60; i++) {
       app.advance(1);
       const [x, y] = app.robot.style.transform.match(/-?\d+\.\d+/g).map(Number);
-      assert.ok(x >= 0 && x + size <= width, "canvas stays horizontally contained");
-      assert.ok(y >= 0 && y + size <= 900, "canvas stays vertically contained");
+      assert.ok(x >= 0 && x + size <= app.stageRect.width, "canvas stays horizontally contained");
+      assert.ok(y >= 0 && y + size <= app.stageRect.height, "canvas stays vertically contained");
     }
-    app.window.innerWidth = 320; app.window.dispatch("resize"); app.advance();
-    assert.equal(app.stats.sizes.at(-1), 210);
+    app.stageRect.width = 212; app.observers.resize(); app.advance();
+    assert.equal(app.stats.sizes.at(-1), 196);
     app.assertClean();
   });
 }
@@ -181,18 +196,40 @@ test("Hidden tab stops scheduling frames and resumes without a movement jump", (
   assert.ok(app.stats.rendered > rendered);
   app.assertClean();
 });
-test("Robot automatically moves with reduced motion enabled and has no playback buttons", () => {
+test("Reduced motion renders a still pose and changing preference restarts safely", () => {
   const app = harness({ reduced: true }); app.advance();
   const initial = app.robot.style.transform;
-  assert.equal(app.stats.buttonCount, 0);
-  app.advance(2);
-  assert.notEqual(app.robot.style.transform, initial);
-  assert.ok(app.frames.size > 0);
+  const rendered = app.stats.rendered;
+  app.advance(20);
+  assert.equal(app.robot.style.transform, initial);
+  assert.equal(app.stats.rendered, rendered);
+  assert.equal(app.frames.size, 0);
+  assert.equal(app.pause.hidden, true);
   app.media.matches = false; app.media.dispatch("change"); app.advance();
-  app.media.matches = true; app.media.dispatch("change");
-  const rendered = app.stats.rendered; app.advance(2);
   assert.ok(app.stats.rendered > rendered);
-  assert.equal(app.overlay.dataset.motion, "running");
+  assert.ok(app.frames.size > 0);
+  app.media.matches = true; app.media.dispatch("change");
+  assert.equal(app.frames.size, 0);
+  assert.equal(app.overlay.dataset.motion, "paused");
+  app.assertClean();
+});
+test("Pause control and offscreen visibility stop work and resume beyond ten seconds", () => {
+  const app = harness(); app.advance(12);
+  app.pause.dispatch("click");
+  const rendered = app.stats.rendered;
+  app.advance(20);
+  assert.equal(app.frames.size, 0);
+  assert.equal(app.stats.rendered, rendered);
+  app.pause.dispatch("click"); app.advance();
+  assert.ok(app.stats.rendered > rendered);
+  app.observers.visibility([{ isIntersecting: false }]);
+  const hiddenRendered = app.stats.rendered;
+  app.advance(20);
+  assert.equal(app.frames.size, 0);
+  assert.equal(app.stats.rendered, hiddenRendered);
+  app.observers.visibility([{ isIntersecting: true }]); app.advance(20);
+  assert.ok(app.stats.rendered > hiddenRendered);
+  assert.ok(app.frames.size > 0);
   app.assertClean();
 });
 test("WebGL failure degrades gracefully", () => {
@@ -214,7 +251,7 @@ test("Slow GPUs lower quality while continuing to patrol and follow the mouse", 
   assert.ok(app.frames.size > 0);
   assert.ok(app.stats.reducedQuality > 0);
   const position = app.robot.style.transform;
-  app.window.dispatch("pointermove", { pointerType: "mouse", clientX: 180, clientY: 650 });
+  app.page.dispatch("pointermove", { pointerType: "mouse", clientX: 180, clientY: 500 });
   app.advance(1);
   assert.equal(app.overlay.dataset.mode, "following");
   assert.notEqual(app.robot.style.transform, position);
@@ -307,10 +344,10 @@ test("Only the new robot is mounted by the landing page", () => {
   assert.doesNotMatch(page + bento, /<SectionInsect|<CrawlingBug/);
 });
 test("Landscape touch devices use the larger mobile size and keep moving through scroll", () => {
-  const app = harness({ reduced: true, coarse: true, width: 844 });
+  const app = harness({ coarse: true, width: 844 });
   app.advance();
-  assert.equal(app.stats.sizes.at(-1), 210);
-  assert.equal(app.robot.style.width, "210px");
+  assert.equal(app.stats.sizes.at(-1), 198);
+  assert.equal(app.robot.style.width, "198px");
   const rendered = app.stats.rendered;
   app.window.dispatch("scroll"); app.advance();
   assert.ok(app.stats.rendered > rendered);

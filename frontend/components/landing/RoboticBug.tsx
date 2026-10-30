@@ -12,6 +12,7 @@ export default function RoboticBug() {
   const robotRef = useRef<HTMLDivElement>(null);
   const scanRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLElement>(null);
+  const pauseRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const overlay = overlayRef.current;
@@ -19,8 +20,12 @@ export default function RoboticBug() {
     const scan = scanRef.current;
     const label = labelRef.current;
     const page = overlay?.parentElement;
-    if (!overlay || !robot || !scan || !label || !page) return;
+    const pause = pauseRef.current;
+    if (!overlay || !robot || !scan || !label || !page || !pause) return;
 
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let paused = false;
+    let visible = false;
     const coarse = window.matchMedia("(pointer: coarse)");
     const device = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
     const lowPower = (device.deviceMemory ?? 8) <= 4 || navigator.hardwareConcurrency <= 4 || coarse.matches || Boolean(device.connection?.saveData);
@@ -32,14 +37,14 @@ export default function RoboticBug() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let now = 0;
     let last = 0;
-    let size = 300;
+    let size = 200;
     let dirty = true;
     let initialized = false;
     let frameInterval = 1000 / (lowPower ? 30 : 60);
     let contextLost = false;
     let renderSamples = 0;
     let renderCost = 0;
-    let bounds = viewportBounds(window.innerWidth, window.innerHeight, size, 80);
+    let bounds = viewportBounds(0, 0, size, 0);
     const state = { position: { x: bounds.right, y: bounds.top + 80 }, heading: -1, speed: 0 };
     let target = { ...state.position };
     let pointer: Point | undefined;
@@ -65,33 +70,20 @@ export default function RoboticBug() {
     }
     function measure() {
       dirty = false;
-      const preferredSize = window.innerWidth <= 640 || coarse.matches ? 210 : 300;
-      const nextSize = Math.max(1, Math.min(preferredSize, window.innerWidth - 16, window.innerHeight - 16));
+      const rect = overlay!.getBoundingClientRect();
+      const nextSize = Math.max(1, Math.min(200, rect.width - 16, rect.height - 16));
       const resized = nextSize !== size || !initialized;
       size = nextSize;
       robot!.style.width = size + "px";
       robot!.style.height = size + "px";
-      const header = page!.querySelector("header")?.getBoundingClientRect();
-      bounds = viewportBounds(window.innerWidth, window.innerHeight, size, header?.bottom ?? 0);
+      bounds = viewportBounds(rect.width, rect.height, size, 0);
       state.position = contain(state.position, bounds);
       target = contain(target, bounds);
       if (resized) scene?.resize(size);
-      candidates = [];
-      for (const element of page!.querySelectorAll("[data-bug-scan], [data-bug-card]")) {
-        const rect = element.getBoundingClientRect();
-        if (rect.bottom < bounds.top || rect.top > bounds.bottom || rect.right < 0 || rect.left > window.innerWidth) continue;
-        const points = [
-          { x: rect.left + 18, y: rect.top + 18 },
-          { x: rect.right - 18, y: rect.top + 18 },
-          { x: rect.left + 18, y: rect.bottom - 18 },
-          { x: rect.right - 18, y: rect.bottom - 18 },
-        ];
-        for (const point of points) {
-          const contained = contain(point, bounds);
-          if (distance(contained, point) < 30) candidates.push({ element, point: contained });
-        }
-      }
+      // Scanning is a contained decorative demo, never a target elsewhere on the page.
+      candidates = [{ element: page!, point: { x: rect.width / 2, y: rect.height / 2 } }];
     }
+
     function position() {
       robot!.style.transform = `translate3d(${(state.position.x - size / 2).toFixed(2)}px, ${(state.position.y - size / 2).toFixed(2)}px, 0)`;
     }
@@ -101,14 +93,13 @@ export default function RoboticBug() {
       last = 0;
     }
     function startLoop() {
-      if (disposed || !scene || contextLost || frame || document.hidden) return;
-      // Automatic playback is intentional, including with reduced-motion enabled.
+      if (disposed || !scene || contextLost || frame || document.hidden || !visible || reduced.matches || paused) return;
       overlay!.dataset.motion = "running";
       frame = window.requestAnimationFrame(tick);
     }
     function tick(timestamp: number) {
       frame = 0;
-      if (disposed || !scene || document.hidden) return;
+      if (disposed || !scene || contextLost || document.hidden || !visible || reduced.matches || paused) return;
       if (last && timestamp - last < frameInterval - 1) {
         frame = window.requestAnimationFrame(tick);
         return;
@@ -185,7 +176,9 @@ export default function RoboticBug() {
     function onPointer(event: PointerEvent) {
       // Touch and pen scrolling never become follow targets.
       if (event.pointerType !== "mouse" || coarse.matches) return;
-      pointer = contain({ x: event.clientX, y: event.clientY }, bounds);
+      const rect = overlay!.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
+      pointer = contain({ x: event.clientX - rect.left, y: event.clientY - rect.top }, bounds);
       pointerAt = now;
     }
     function onScroll() {
@@ -193,8 +186,29 @@ export default function RoboticBug() {
       pointerAt = -100;
       if (scanTarget) { stopScan(); patrol(); }
     }
+    function renderStill() {
+      if (!scene || contextLost || !visible || document.hidden) return;
+      measure();
+      position();
+      scene.render(0, now, 0, state.heading, 0, 0);
+    }
     function onLayout() {
       onScroll();
+      if (reduced.matches || paused) renderStill();
+    }
+    function onMotion() {
+      stopLoop();
+      stopScan();
+      overlay!.dataset.motion = reduced.matches || paused ? "paused" : "running";
+      pause!.hidden = reduced.matches;
+      renderStill();
+      startLoop();
+    }
+    function onPause() {
+      paused = !paused;
+      pause!.textContent = paused ? "Resume animation" : "Pause animation";
+      pause!.setAttribute("aria-pressed", String(paused));
+      onMotion();
     }
     function onVisibility() {
       if (document.hidden) { stopLoop(); scan!.hidden = true; }
@@ -203,7 +217,7 @@ export default function RoboticBug() {
         stopScan();
         dirty = true;
         if (!scene) schedule();
-        else startLoop();
+        else onMotion();
       }
     }
     function onContextLost(event: Event) {
@@ -219,11 +233,11 @@ export default function RoboticBug() {
       robot!.style.visibility = "visible";
       overlay!.dataset.renderer = "webgl";
       dirty = true;
-      startLoop();
+      onMotion();
     }
     function initialize() {
       idle = undefined; timer = undefined;
-      if (disposed || scene || document.hidden) return;
+      if (disposed || scene || document.hidden || !visible) return;
       canvas = document.createElement("canvas");
       canvas.className = styles.canvas;
       canvas.setAttribute("aria-hidden", "true");
@@ -237,10 +251,13 @@ export default function RoboticBug() {
         patrol();
         robot!.style.visibility = "visible";
         overlay!.dataset.renderer = "webgl";
-        startLoop();
+        onMotion();
       } catch {
         // Decoration is optional: no error UI, layout shift, or blocked controls.
+        scene?.dispose();
+        scene = undefined;
         canvas.remove();
+        pause!.hidden = true;
         overlay!.dataset.renderer = "unavailable";
       }
     }
@@ -250,18 +267,33 @@ export default function RoboticBug() {
       else timer = setTimeout(initialize, 150);
     }
 
-    window.addEventListener("pointermove", onPointer, { passive: true });
+    const resizeObserver = new ResizeObserver(onLayout);
+    resizeObserver.observe(overlay);
+    const visibilityObserver = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      if (!visible) { stopLoop(); stopScan(); }
+      else if (!scene) schedule();
+      else { dirty = true; onMotion(); }
+    });
+    visibilityObserver.observe(overlay);
+    pause.hidden = reduced.matches;
+    pause.addEventListener("click", onPause);
+    reduced.addEventListener("change", onMotion);
+    page.addEventListener("pointermove", onPointer, { passive: true });
     window.addEventListener("resize", onLayout, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     window.visualViewport?.addEventListener("resize", onLayout, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
-    schedule();
     return () => {
       disposed = true;
       stopLoop();
       if (idle !== undefined) window.cancelIdleCallback(idle);
       if (timer !== undefined) clearTimeout(timer);
-      window.removeEventListener("pointermove", onPointer);
+      visibilityObserver.disconnect();
+      resizeObserver.disconnect();
+      reduced.removeEventListener("change", onMotion);
+      pause.removeEventListener("click", onPause);
+      page.removeEventListener("pointermove", onPointer);
       window.removeEventListener("resize", onLayout);
       window.removeEventListener("scroll", onScroll);
       window.visualViewport?.removeEventListener("resize", onLayout);
@@ -276,6 +308,7 @@ export default function RoboticBug() {
   }, []);
 
   return (
+    <>
     <div ref={overlayRef} className={styles.overlay} aria-hidden="true" data-robotic-bug data-renderer="pending">
       <div ref={robotRef} className={styles.robot}>
         <div ref={scanRef} className={styles.scan} hidden>
@@ -284,6 +317,8 @@ export default function RoboticBug() {
         </div>
       </div>
     </div>
+    <button ref={pauseRef} type="button" className={styles.pause} aria-pressed="false">Pause animation</button>
+    </>
   );
 }
 
