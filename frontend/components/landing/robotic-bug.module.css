@@ -1,4 +1,4 @@
-﻿.overlay {
+.overlay {
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -60,7 +60,7 @@
   .robot { will-change: auto; }
 }
 
-.fallback { position: absolute; inset: 0; display: block; width: 100%; height: 100%; filter: drop-shadow(0 3px 5px #0008); }
-.overlay[data-renderer="webgl"] .fallback { display: none; }
+.fallback { position: absolute; inset: 0; display: none; width: 100%; height: 100%; filter: drop-shadow(0 3px 5px #0008); }
+.overlay[data-renderer="fallback"] .fallback { display: block; }
 
 .overlay[data-renderer="fallback"] .canvas { visibility: hidden; }

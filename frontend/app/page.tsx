@@ -5,6 +5,7 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { BentoFeatures } from "@/components/landing/bento-features";
 import { CodeReviewAnimation } from "@/components/landing/code-review-animation";
+import { RoboticBugLoader } from "@/components/landing/robotic-bug-loader";
 import { MacWindow } from "@/components/landing/mac-window";
 import styles from "./landing-page.module.css";
 import { SiteHeader } from "@/components/marketing/site-header";
@@ -139,6 +140,7 @@ export default function Page() {
       </main>
 
       <SiteFooter />
+      <RoboticBugLoader />
     </div>
   );
 }
