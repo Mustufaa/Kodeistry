@@ -42,8 +42,5 @@ if __name__ == "__main__":
         proxy_headers=True,
         forwarded_allow_ips="*",
         access_log=False,
-        ws_max_size=2048,
-        ws_ping_interval=20,
-        ws_ping_timeout=20,
         log_config=LOG_CONFIG,
     )

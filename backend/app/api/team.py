@@ -120,16 +120,6 @@ async def assign_repositories(tenant_id: int, user_id: int, body: RepositoryAssi
     if target.role != "MEMBER":
         raise HTTPException(422, "Owners and admins already have access to all team repositories.")
     ids = await validate_assignments(db, tenant_id, body.repository_ids)
-    previous_ids = set((await db.scalars(select(RepositoryMember.repository_id).where(RepositoryMember.member_id == target.id))).all())
-    if previous_ids == set(ids):
-        return
     await db.execute(delete(RepositoryMember).where(RepositoryMember.member_id == target.id))
     db.add_all([RepositoryMember(tenant_id=tenant_id, member_id=target.id, repository_id=rid) for rid in ids])
-    from app.services.collaboration import create_notifications
-    import uuid
-    await db.flush()
-    await db.run_sync(lambda session: create_notifications(session.connection(), tenant_id=tenant_id,
-        event_type="repository_assignment_changed", title="Repository assignments changed",
-        message="Your repository access has been updated.", href="/dashboard",
-        key=f"assignments:{target.id}:{uuid.uuid4()}", recipients=[user_id]))
     await db.commit()

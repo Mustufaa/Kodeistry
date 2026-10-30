@@ -14,6 +14,5 @@ if _url.drivername == "postgresql+asyncpg" and (_url.host or "").endswith(".supa
 engine = create_async_engine(
     _url,
     echo=settings.DATABASE_ECHO,
-    hide_parameters=True,
     connect_args=_connect_args,
 )

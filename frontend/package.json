@@ -8,16 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test tests/*.test.mjs",
-    "test:responsive": "node tests/landing-responsive.e2e.mjs",
-    "test:collaboration": "node tests/collaboration.e2e.mjs"
+    "test:responsive": "node tests/landing-responsive.e2e.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
-    "@radix-ui/react-avatar": "^1.3.1",
-    "@radix-ui/react-dialog": "^1.3.1",
-    "@radix-ui/react-scroll-area": "^1.4.0",
     "@radix-ui/react-slot": "^1.3.3",
-    "@radix-ui/react-tooltip": "^1.4.1",
     "@tanstack/react-query": "^5.104.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

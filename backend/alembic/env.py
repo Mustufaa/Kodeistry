@@ -15,7 +15,6 @@ import app.models.repository_member
 import app.models.team_invitation
 import app.models.github_installation
 import app.models.repository
-import app.models.collaboration
 from app.models.review_run import ReviewRun
 from app.models.review_finding import ReviewFinding
 from app.models.fix_workflow import PullRequestHead, FixJob, FixSuggestion, FindingVerification
