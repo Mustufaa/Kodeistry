@@ -13,7 +13,7 @@ export function SiteHeader() {
           <Link href="/#product" className="hover:text-foreground">Product</Link>
           <Link href="/#features" className="hover:text-foreground">Features</Link>
           <Link href="/#security" className="hover:text-foreground">Security</Link>
-          <Link href="/#github" className="hover:text-foreground">GitHub</Link>
+          <a href="https://github.com/Mustufaa" target="_blank" rel="noopener noreferrer" aria-label="GitHub (opens in a new tab)" className="hover:text-foreground">GitHub</a>
           <Link href="/faq" className="hover:text-foreground">FAQ</Link>
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-3">

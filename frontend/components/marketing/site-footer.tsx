@@ -4,7 +4,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { GitHubMark } from "@/components/icons/github-mark";
 import styles from "./site-footer.module.css";
 
-export const projectUrl = "https://github.com/Mustufaa/Kodeistry";
+export const projectUrl = "https://github.com/Mustufaa";
 const email = "mailto:mohammadmustufa72@gmail.com";
 const groups = [
   { title: "Platform", links: [["Features", "#features"], ["How It Works", "#how-it-works"], ["Security", "#security"]] },
