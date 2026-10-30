@@ -197,21 +197,22 @@ test("Hidden tab stops scheduling frames and resumes without a movement jump", (
   assert.ok(app.stats.rendered > rendered);
   app.assertClean();
 });
-test("Reduced motion renders a still pose and changing preference restarts safely", () => {
+test("Requested automatic playback also runs with reduced motion, and manual pause still works", () => {
   const app = harness({ reduced: true }); app.advance();
   const initial = app.robot.style.transform;
-  const rendered = app.stats.rendered;
-  app.advance(20);
-  assert.equal(app.robot.style.transform, initial);
-  assert.equal(app.stats.rendered, rendered);
-  assert.equal(app.frames.size, 0);
-  assert.equal(app.pause.hidden, true);
-  app.media.matches = false; app.media.dispatch("change"); app.advance();
-  assert.ok(app.stats.rendered > rendered);
+  app.advance(3);
+  assert.notEqual(app.robot.style.transform, initial);
   assert.ok(app.frames.size > 0);
-  app.media.matches = true; app.media.dispatch("change");
+  assert.equal(app.pause.hidden, false);
+  app.media.matches = false; app.media.dispatch("change"); app.advance();
+  app.media.matches = true; app.media.dispatch("change"); app.advance();
+  assert.equal(app.overlay.dataset.motion, "running");
+  app.pause.dispatch("click");
+  const paused = app.robot.style.transform; app.advance(3);
+  assert.equal(app.robot.style.transform, paused);
   assert.equal(app.frames.size, 0);
-  assert.equal(app.overlay.dataset.motion, "paused");
+  app.pause.dispatch("click"); app.advance(3);
+  assert.notEqual(app.robot.style.transform, paused);
   app.assertClean();
 });
 test("Pause control resumes and scrolling keeps the roaming robot alive beyond ten seconds", () => {
@@ -258,18 +259,21 @@ test("Slow GPUs lower quality while continuing to patrol and follow the mouse", 
   assert.notEqual(app.robot.style.transform, position);
   app.assertClean();
 });
-test("Context loss stops animation until restoration", () => {
+test("Context loss keeps the fallback moving without rendering into the lost context", () => {
   const app = harness(); app.advance();
   const canvas = app.robot.children[0];
   canvas.dispatch("webglcontextlost", { preventDefault() {} });
-  app.advance();
-  assert.equal(app.frames.size, 0);
-  assert.equal(app.overlay.dataset.renderer, "fallback");
-  assert.equal(app.robot.style.visibility, "visible");
-  app.document.dispatch("visibilitychange"); app.advance();
-  assert.equal(app.frames.size, 0);
-  canvas.dispatch("webglcontextrestored"); app.advance();
+  const rendered = app.stats.rendered, position = app.robot.style.transform;
+  app.advance(3);
   assert.ok(app.frames.size > 0);
+  assert.equal(app.stats.rendered, rendered);
+  assert.notEqual(app.robot.style.transform, position);
+  assert.equal(app.overlay.dataset.renderer, "fallback");
+  app.document.dispatch("visibilitychange"); app.advance();
+  assert.equal(app.stats.rendered, rendered);
+  canvas.dispatch("webglcontextrestored"); app.advance();
+  assert.ok(app.stats.rendered > rendered);
+  assert.equal(app.overlay.dataset.renderer, "webgl");
   app.assertClean();
 });
 test("Original geometry keeps six IK legs, white/black armor, antennae, and alternating tripods", () => {
@@ -367,4 +371,18 @@ test("Roaming steers around a heading without hiding or leaving the viewport", (
   assert.ok(point.x >= bounds.left && point.x <= bounds.right && point.y >= bounds.top && point.y <= bounds.bottom);
   const free = avoidContent({ x: 230, y: 430 }, bounds, [heading], 84);
   assert.equal(free.x, 230); assert.equal(free.y, 430);
+});
+
+test("Patrol chooses a reachable destination instead of getting pinned behind a full-width heading", () => {
+  const { patrolTarget, canTravel, distance } = evaluate("robot-motion.ts", {});
+  const bounds = { left: 105, right: 270, top: 140, bottom: 680 };
+  const obstacles = [{ left: 16, right: 359, top: 200, bottom: 320 }];
+  const from = { x: 230, y: 404 };
+  for (const random of [0, .25, .5, .75, .99]) {
+    const target = patrolTarget(from, bounds, obstacles, 84, () => random);
+    assert.ok(distance(from, target) > 24);
+    assert.ok(canTravel(from, target, obstacles, 84));
+    assert.ok(target.y >= 404);
+  }
+  assert.equal(canTravel(from, { x: 230, y: 145 }, obstacles, 84), false);
 });

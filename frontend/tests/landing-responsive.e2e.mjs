@@ -89,8 +89,19 @@ try {
   const paused = await pose(); await page.waitForTimeout(500); assert.equal(await pose(), paused);
   await page.getByRole("button", { name: "Resume animation" }).click();
   await page.emulateMedia({ reducedMotion: "reduce" });
-  const still = await pose(); await page.waitForTimeout(500); assert.equal(await pose(), still);
-  assert.equal(await robot.getAttribute("data-motion"), "paused");
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  const motionSamples = [];
+  // Observe real movement (including Kody's SVG), not just an animation name.
+  for (let sample = 0; sample < 40; sample++) {
+    motionSamples.push(await page.evaluate(() => ({
+      bug: document.querySelector("[data-robotic-bug] canvas").parentElement.style.transform,
+      kody: getComputedStyle(document.querySelector('[aria-controls="kody-panel"] svg > g')).transform,
+    })));
+    await page.waitForTimeout(500);
+  }
+  assert.ok(new Set(motionSamples.map(sample => sample.bug)).size > 15, "Bug keeps moving with reduced-motion enabled");
+  assert.ok(new Set(motionSamples.map(sample => sample.kody)).size > 15, "Kody keeps moving with reduced-motion enabled");
+  assert.equal(await robot.getAttribute("data-motion"), "running");
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.waitForFunction(() => document.querySelector("[data-robotic-bug]")?.dataset.motion === "running");
   await mkdir("test-results", { recursive: true });
@@ -117,7 +128,7 @@ try {
   await fallbackPage.waitForFunction(previous => document.querySelector("[data-robot-fallback]").parentElement.style.transform !== previous, fallbackPose);
   await fallbackPage.close();
   assert.deepEqual(errors, [], "No browser console or hydration errors");
-  console.log("PASS keyboard order/focus, internal links, 15-second animation, pause/resume, reduced motion, console and hydration checks");
+  console.log("PASS keyboard order/focus, internal links, 15-second animation, pause/resume, automatic playback with reduced motion, Kody movement, console and hydration checks");
 } finally {
   await browser.close();
 }

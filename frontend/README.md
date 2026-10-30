@@ -52,9 +52,15 @@ Playwright, checks all nine widths from 320px to 1920px, and saves screenshots i
 
 The responsive suite checks footer geometry, CTA removal, 44px touch targets, Kody's
 launcher clearance and panel bounds, keyboard focus/order, internal link
-responses, animation after 15 seconds, pause/resume, reduced motion, and browser
+responses, animation after 15 seconds, pause/resume, automatic playback even
+with reduced motion enabled (the requested product behavior), and browser
 console/hydration errors. It also simulates WebGL failure and checks that the
 roaming bug retains a visible, moving SVG fallback. It does not submit
 authentication or chat requests.
 The unit suite exercises frame scheduling, container resizing, low-power mode,
 WebGL loss/restoration, Strict Mode cleanup, and resource disposal.
+
+For a sustained-motion regression, run `node tests/animation-playback.e2e.mjs`
+against the same local server. It starts mobile and desktop pages with Reduce
+Motion already enabled and checks both characters in each of three consecutive
+ten-second windows, catching animations that freeze after startup.

@@ -111,6 +111,36 @@ function KodyAssistantContent({ showGreeting }: { showGreeting: boolean }) {
     return () => { cancelAnimationFrame(frame); document.removeEventListener("keydown", onKeyDown); };
   }, [open]);
 
+  useEffect(() => {
+    const launcher = launcherRef.current;
+    if (!launcher) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    function resetCycle() {
+      clearTimeout(timer);
+      launcher!.dataset.away = "false";
+      if (open || document.hidden || launcher!.matches(":hover, :focus-within")) return;
+      timer = setTimeout(retreat, 10_000);
+    }
+    function retreat() {
+      if (open || document.hidden || launcher!.matches(":hover, :focus-within")) {
+        resetCycle();
+        return;
+      }
+      launcher!.dataset.away = "true";
+      timer = setTimeout(resetCycle, 5_000);
+    }
+    const events = ["mouseenter", "mouseleave", "focus", "blur"] as const;
+    events.forEach(event => launcher.addEventListener(event, resetCycle));
+    document.addEventListener("visibilitychange", resetCycle);
+    resetCycle();
+    return () => {
+      clearTimeout(timer);
+      events.forEach(event => launcher.removeEventListener(event, resetCycle));
+      document.removeEventListener("visibilitychange", resetCycle);
+      launcher.dataset.away = "false";
+    };
+  }, [open]);
+
   useEffect(() => () => requestRef.current?.abort(), []);
   useEffect(() => {
     if (stickToBottomRef.current && listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -213,6 +243,7 @@ function KodyAssistantContent({ showGreeting }: { showGreeting: boolean }) {
         aria-label="Open Kody assistant"
         aria-expanded={open}
         aria-controls="kody-panel"
+        data-away="false"
         onClick={() => open ? closePanel() : setOpen(true)}
       >
         <KodyRobot />

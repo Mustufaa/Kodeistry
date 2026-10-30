@@ -1,6 +1,32 @@
 # Footer and landing animation changes
 
-## Follow-up: CTA removed and roaming restored
+## Latest follow-up: Kody retreat timing
+
+Kody now stays onscreen for ten idle seconds, slides outside the right edge for
+five seconds, and repeats. Hover, keyboard focus, and an open chat keep the
+launcher onscreen. Visibility changes restart the cycle; timers and listeners
+are cleaned up on unmount. The widget is clipped to the viewport to prevent
+horizontal overflow. The bug's roaming behavior is unchanged.
+
+`node tests/kody-retreat.e2e.mjs` verifies timing, repetition, keyboard recovery,
+hover/open-chat behavior, and viewport overflow at mobile and desktop widths.
+
+## Earlier follow-up: both characters animate automatically
+
+The user explicitly requested automatic movement even when the system's Reduce
+Motion setting is enabled. That setting no longer stops the bug or Kody. The
+bug's manual pause/resume control remains visible. Kody has a clearer continuous
+bob and a more frequent wave, with its clickable launcher kept in place.
+
+Patrol now chooses reachable destinations in its current free corridor, detects
+stalled movement, and redirects rather than pressing against heading boundaries.
+Scan approach time allows for travel distance. WebGL context loss switches to a
+moving fallback without rendering into the lost context.
+
+The browser test samples both the bug's position and Kody's actual SVG transform
+for 20 seconds with reduced motion enabled to detect stationary animations.
+
+## Earlier follow-up: CTA removed and roaming restored
 
 The bottom CTA shown in the user's screenshot has been removed completely,
 including its framed robot area and buttons. The footer redesign is retained.
