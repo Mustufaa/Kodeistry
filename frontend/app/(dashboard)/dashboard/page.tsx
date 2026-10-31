@@ -6,7 +6,7 @@ import { AlertTriangle, ArrowRight, FolderGit2, GitPullRequest, Play, Plus, Shie
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Line, LineChart } from "recharts";
 
 import { EmptyState } from "@/components/dashboard/empty-state";
-import { PageHeader } from "@/components/dashboard/page-header";
+import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { TableSkeleton } from "@/components/dashboard/skeletons";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,13 @@ import { formatDate, shortSha } from "@/lib/format";
 const severityColors: Record<string, string> = { critical: "#ef4444", high: "#f97316", medium: "#eab308", low: "#3b82f6", info: "#71717a" };
 
 export default function DashboardPage() {
-  const { tenantId, canManage } = useCurrentTenant();
+  const { tenantId, canManage, user } = useCurrentTenant();
   const dashboard = useQuery({ queryKey: ["dashboard", tenantId], queryFn: () => getDashboardSummary(tenantId!), enabled: !!tenantId });
   const analytics = useQuery({ queryKey: ["analytics", tenantId, "overview"], queryFn: () => getAnalytics(tenantId!, { timeframe: "30d" }), enabled: !!tenantId });
   const data = dashboard.data; const insight = analytics.data;
   const metrics = [["Repositories", data?.repositories_count, "connected", dashboard], ["Reviews", data?.reviews_count, "completed and in progress", dashboard], ["Open Findings", insight?.summary.open, "detected in the last 30 days", analytics], ["Critical Issues", insight?.summary.critical, "detected in the last 30 days", analytics]] as const;
   return <div className="space-y-6">
-    <PageHeader title="Overview" description={canManage ? "Monitor repositories, reviews and code quality." : "Overview and statistics for your assigned repositories."} actions={canManage ? <><Button asChild variant="outline"><Link href="/repositories"><Play className="size-4" />Run Review</Link></Button><Button asChild><Link href="/settings/integrations/github">{data?.repositories_count ? <><FolderGit2 className="size-4" />Connected</> : <><Plus className="size-4" />Connect Repository</>}</Link></Button></> : undefined} />
+    <DashboardGreeting user={user} actions={canManage ? <><Button asChild variant="outline"><Link href="/repositories"><Play className="size-4" />Run Review</Link></Button><Button asChild><Link href="/settings/integrations/github">{data?.repositories_count ? <><FolderGit2 className="size-4" />Connected</> : <><Plus className="size-4" />Connect Repository</>}</Link></Button></> : undefined} />
     {dashboard.isError || analytics.isError ? <div role="alert" className="rounded-lg border border-red-500/25 bg-red-500/[0.06] p-4 text-sm">Some overview data could not be loaded. <button className="ml-2 font-medium text-primary" onClick={() => { dashboard.refetch(); analytics.refetch(); }}>Try again</button></div> : null}
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(([label, value, detail, query]) => <Card key={label}><CardContent className="p-5"><p className="text-xs font-medium text-muted-foreground">{label}</p>{query.isLoading ? <div className="mt-3 h-8 w-14 animate-pulse rounded bg-muted" /> : <p className={`mt-2 text-[28px] font-semibold tracking-tight ${label === "Critical Issues" && value ? "text-red-600 dark:text-red-400" : ""}`}>{query.isError ? "?" : value ?? 0}</p>}<p className="mt-2 text-xs text-muted-foreground">{detail}</p></CardContent></Card>)}</section>
     <Card><CardHeader className="flex-row items-center justify-between border-b px-5 py-4"><div><CardTitle>Findings Over Time</CardTitle><p className="mt-1 text-xs text-muted-foreground">Issues detected across reviewed pull requests.</p></div><Button asChild size="sm" variant="ghost"><Link href="/analytics">View analytics <ArrowRight className="size-4" /></Link></Button></CardHeader><CardContent className="h-[300px] p-5">{analytics.isLoading ? <TableSkeleton rows={5} /> : <ResponsiveContainer width="100%" height="100%"><LineChart data={insight?.trend ?? []} margin={{ left: -18, right: 12 }}><CartesianGrid stroke="var(--border)" vertical={false} strokeDasharray="3 3" /><XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} minTickGap={28} /><YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8 }} /><Line dataKey="total" name="Findings" type="monotone" stroke="#8b78ff" strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer>}</CardContent></Card>

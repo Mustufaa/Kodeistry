@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+@keyframes dashboard-greeting-arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.dashboard-greeting-enter { animation: dashboard-greeting-arrive 420ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-greeting-enter { animation: none; }
+}
+
 .kody-tour-highlight { outline: 3px solid #8b78ff !important; outline-offset: 4px; }
 .kody-tour-welcome { animation: kody-tour-arrive 600ms ease-out both; }
 @keyframes kody-tour-arrive { from { opacity: 0; transform: translateY(20px) rotate(-10deg); } to { opacity: 1; transform: translateY(0) rotate(0); } }
