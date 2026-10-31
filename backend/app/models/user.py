@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, String, text
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -9,7 +9,10 @@ from app.db.base import Base
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (Index("uq_users_normalized_email", text("lower(trim(email))"), unique=True),)
+    __table_args__ = (
+        Index("uq_users_normalized_email", text("lower(trim(email))"), unique=True),
+        CheckConstraint("tutorial_status IN ('NOT_STARTED', 'IN_PROGRESS', 'SKIPPED', 'COMPLETED')", name="ck_users_tutorial_status"),
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
@@ -56,6 +59,9 @@ class User(Base):
         nullable=True,
         index=True,
     )
+
+    onboarding_prompt_shown_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    tutorial_status: Mapped[str] = mapped_column(String(20), nullable=False, default="NOT_STARTED", server_default="NOT_STARTED")
 
 
     hashed_password: Mapped[str | None] = mapped_column(

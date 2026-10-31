@@ -9,10 +9,12 @@ import { useKodyVisibility } from "./use-kody-visibility";
 import { askKody, type ChatHistoryItem } from "@/lib/api/chat";
 import styles from "./kody-assistant.module.css";
 import { usePreferences } from "@/components/settings/preferences-provider";
+import { TOUR_EVENT } from "@/lib/api/onboarding";
 
 type Message = ChatHistoryItem & { id: number };
 const WELCOME = "Hi! I'm Kody. Ask me about Kodeistry, GitHub setup, or AI code reviews.";
 const QUESTIONS = [
+  "Show me the dashboard tutorial",
   "What is Kodeistry?",
   "How do I connect GitHub?",
   "How do AI code reviews work?",
@@ -45,7 +47,7 @@ function MessageText({ content }: { content: string }) {
   })}</div>;
 }
 
-function KodyRobot() {
+export function KodyRobot() {
   return (
     <svg className={styles.robot} viewBox="0 0 84 94" aria-hidden="true" focusable="false">
       <ellipse className={styles.shadow} cx="42" cy="89" rx="23" ry="3" />
@@ -152,6 +154,12 @@ function KodyAssistantContent({ showGreeting }: { showGreeting: boolean }) {
   function sendMessage(value: string) {
     const message = value.trim();
     if (!message || pending || requestRef.current || message.length > 1000) return;
+    if (/^(show me (the )?dashboard tutorial|take a tour)[.!?]*$/i.test(message)) {
+      window.dispatchEvent(new Event(TOUR_EVENT));
+      setOpen(false);
+      setDraft("");
+      return;
+    }
     const history = messages.filter((item) => item.id !== 0).slice(-8).map(({ role, content }) => ({ role, content }));
     stickToBottomRef.current = true;
     setMessages((current) => [...current, { id: nextIdRef.current++, role: "user", content: message }]);

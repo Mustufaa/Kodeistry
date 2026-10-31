@@ -30,6 +30,8 @@ import { logout } from "@/lib/api/auth";
 import { RepositoryAccessGate } from "@/components/layout/repository-access-gate";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { cn } from "@/lib/utils";
+import { DashboardTour } from "@/components/kody/dashboard-tour";
+import { TOUR_EVENT } from "@/lib/api/onboarding";
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -165,6 +167,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <DashboardTour />
       <aside className={cn("fixed inset-y-0 left-0 z-40 hidden border-r bg-sidebar transition-[width] duration-200 lg:block", collapsed ? "w-[72px]" : "w-64")}>
         {sidebar()}
         <button
@@ -201,6 +204,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {tenants.length > 1 ? <label className="min-w-0"><span className="sr-only">Active team</span><select aria-label="Active team" value={tenantId ?? ""} disabled={isSwitching} onChange={(event) => setTenantId(Number(event.target.value))} className="h-9 max-w-[40vw] rounded-lg border bg-background px-2 text-sm sm:max-w-64">{tenants.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label> : null}
             {switchError ? <span role="alert">Could not switch team. Try again.</span> : null}
             <NotificationBell />
+            <details className="relative"><summary className="cursor-pointer rounded-lg border px-3 py-2">Help</summary><div className="absolute right-0 top-full mt-2 w-40 rounded-lg border bg-popover p-2 shadow-lg"><button className="w-full rounded px-3 py-2 text-left hover:bg-accent" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); window.dispatchEvent(new Event(TOUR_EVENT)); }}>Take a Tour</button></div></details>
           </div>
         </header>
         <main className="mx-auto w-full max-w-[1480px] p-4 sm:p-6 lg:p-8">{isSwitching ? <p role="status">Switching team...</p> : <RepositoryAccessGate>{children}</RepositoryAccessGate>}</main>

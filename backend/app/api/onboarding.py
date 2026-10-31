@@ -2,7 +2,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
@@ -16,6 +16,41 @@ from app.models.tenant_member import TenantMember
 from app.models.user import User
 
 router = APIRouter(prefix="/api/onboarding", tags=["Onboarding"])
+
+
+class TutorialUpdate(BaseModel):
+    status: Literal["IN_PROGRESS", "SKIPPED", "COMPLETED"]
+
+
+@router.post("/tour/claim")
+async def claim_tour_invitation(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # The conditional UPDATE, not an earlier read, arbitrates concurrent tabs.
+    result = await db.execute(
+        update(User).where(User.id == current_user.id, User.onboarding_prompt_shown_at.is_(None))
+        .values(onboarding_prompt_shown_at=func.now()).returning(User.id)
+        .execution_options(synchronize_session=False)
+    )
+    claimed = result.scalar_one_or_none() is not None
+    await db.commit()
+    return {"show_invitation": claimed}
+
+
+@router.put("/tour/status")
+async def update_tutorial_status(
+    payload: TutorialUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Manual starts also consume any unshown invitation, but NEVER reset it.
+    await db.execute(update(User).where(User.id == current_user.id).values(
+        tutorial_status=payload.status,
+        onboarding_prompt_shown_at=func.coalesce(User.onboarding_prompt_shown_at, func.now()),
+    ).execution_options(synchronize_session=False))
+    await db.commit()
+    return {"tutorial_status": payload.status}
 
 
 class OnboardingUser(BaseModel):

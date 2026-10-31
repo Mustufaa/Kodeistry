@@ -1,5 +1,13 @@
 import { apiRequest } from "./client";
 
+export const TOUR_EVENT = "kodeistry-start-tour";
+export function claimTourInvitation() {
+  return apiRequest<{ show_invitation: boolean }>("/onboarding/tour/claim", { method: "POST", cache: "no-store" });
+}
+export function saveTutorialStatus(status: "IN_PROGRESS" | "SKIPPED" | "COMPLETED") {
+  return apiRequest("/onboarding/tour/status", { method: "PUT", body: JSON.stringify({ status }) });
+}
+
 export interface OnboardingStatus {
   authenticated: true;
   user: {

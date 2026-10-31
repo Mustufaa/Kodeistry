@@ -1,5 +1,15 @@
 # Kody assistant
 
+## One-time dashboard invitation
+
+Before deploying the updated API/frontend, run `alembic upgrade head` from the backend environment. The [Kody migration](../backend/alembic/versions/cd53ea42f803_kody_invitation.py) backfills every existing account with an invitation timestamp within the schema migration transaction. New accounts default to a null timestamp and `NOT_STARTED`. Do not delete or reset invitation timestamps when deploying or rolling back application code; this migration deliberately refuses downgrade to preserve account history.
+
+After an authenticated dashboard summary loads successfully, the [dashboard tour](../frontend/components/kody/dashboard-tour.tsx) calls `POST /api/onboarding/tour/claim`. A conditional database update grants at most one request permission to display the invitation, across tabs and devices. The transaction commits before returning that permission. Errors never grant permission. A lost response or a closed page after the commit can consume the invitation without displaying it: this deliberately favors the strict at-most-once requirement. Manual access remains available.
+
+`PUT /api/onboarding/tour/status` stores `IN_PROGRESS`, `SKIPPED`, or `COMPLETED` separately. Starting manually preserves an existing invitation timestamp and consumes an outstanding invitation if necessary. Closing an unfinished tour leaves `IN_PROGRESS`, without automatically resuming it. Help → Take a Tour and Kody's “Show me the dashboard tutorial” action start the tour manually. No browser storage controls invitation eligibility. If saving a decision fails, a toast offers a retry; the invitation remains consumed regardless.
+
+Regression coverage: [account persistence and concurrent claims](../backend/tests/test_kody_tour.py). Run `python -m pytest tests/test_kody_tour.py -q` in the configured backend environment.
+
 Kody is a public guidance chatbot. The frontend mounts one SVG launcher in the shared root layout, including dashboard pages. Conversation messages stay in React memory for the current page session; clearing or reloading removes them. The frontend sends only text typed in the chat and bounded conversation history to the chat API. It does not attach account, repository, finding, or source-code data.
 
 ## Local setup
