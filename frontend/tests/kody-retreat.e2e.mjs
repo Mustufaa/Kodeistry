@@ -4,15 +4,17 @@ import { mkdir } from "node:fs/promises";
 const browser = await chromium.launch({ channel: process.env.TEST_BROWSER_CHANNEL || "chrome", headless: true });
 try {
   await mkdir("test-results", { recursive: true });
-  for (const width of [375, 1366]) {
-    const page = await browser.newPage({ viewport: { width, height: 900 } });
+  for (const { width, touch } of [{ width: 375, touch: true }, { width: 768, touch: true }, { width: 1366, touch: false }]) {
+    const page = await browser.newPage({ viewport: { width, height: 900 }, hasTouch: touch, isMobile: touch });
     const errors = []; page.on("pageerror", error => errors.push(error.message));
     const requests = [];
+    await page.route("**/auth/csrf", route => route.fulfill({ json: { csrf_token: "test-csrf" } }));
     await page.route("**/chat", async route => { requests.push(route.request().postDataJSON()); await route.fulfill({ json: { reply: "Conversation preserved." } }); });
+    await page.goto(process.env.TEST_BASE_URL || "http://127.0.0.1:3000", { waitUntil: "networkidle", timeout: 120_000 });
+    const launcher = page.locator('[aria-controls="kody-panel"]');
+    await page.waitForFunction(() => document.querySelector('[aria-controls="kody-panel"]')?.parentElement?.dataset.kodyPhase === "visible");
     await page.clock.install({ time: new Date("2026-10-30T00:00:00Z") });
     await page.clock.pauseAt(new Date("2026-10-30T00:00:01Z"));
-    await page.goto(process.env.TEST_BASE_URL || "http://127.0.0.1:3000", { waitUntil: "networkidle" });
-    const launcher = page.locator('[aria-controls="kody-panel"]');
     const phase = () => launcher.getAttribute("data-phase");
     const finish = () => launcher.evaluate(el => el.getAnimations({ subtree: true }).forEach(animation => { if (animation.effect.getTiming().iterations !== Infinity) animation.finish(); }));
     await launcher.focus(); await launcher.blur();
@@ -52,8 +54,17 @@ try {
     assert.ok(requests[1].history.some(item => item.content === "Remember this conversation"));
     await page.keyboard.press("Escape");
     await page.clock.runFor(32);
-    await page.mouse.move(0,0); await launcher.blur(); await page.clock.fastForward(10000);
+    // Pointer users keep the restored focus: it must not freeze the retreat timer.
+    if (touch) {
+      await launcher.tap();
+      await page.getByRole("button", { name: "Close Kody assistant" }).tap();
+      await page.clock.runFor(32);
+    }
+    await page.mouse.move(0,0);
+    assert.equal(await launcher.evaluate(el => document.activeElement === el), true);
+    await page.clock.fastForward(10000);
     assert.equal(await phase(), "dismantling");
+    await page.keyboard.press("Tab");
     await launcher.focus(); assert.equal(await phase(), "assembling");
     await finish(); assert.equal(await phase(), "visible");
     await page.emulateMedia({ reducedMotion: "reduce" });

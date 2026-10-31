@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 type Phase = "visible" | "dismantling" | "hidden" | "assembling";
 const parts: Record<string, [number, number, number]> = {
@@ -11,6 +11,9 @@ const parts: Record<string, [number, number, number]> = {
 
 /** One cancelable visibility timeline. Chat state stays mounted throughout. */
 export function useKodyVisibility(ref: RefObject<HTMLButtonElement | null>, open: boolean) {
+  // Preserve input modality when opening/closing chat restarts the effect.
+  const keyboardInput = useRef(true);
+  const lastPointer = useRef("mouse");
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
@@ -21,7 +24,8 @@ export function useKodyVisibility(ref: RefObject<HTMLButtonElement | null>, open
     let timer: ReturnType<typeof setTimeout> | undefined;
     let animations: Animation[] = [];
     let generation = 0;
-    const held = () => open || document.hidden || launcher.matches(":hover, :focus-within");
+    let mouseOver = lastPointer.current === "mouse" && matchMedia("(any-hover: hover)").matches && launcher.matches(":hover");
+    const held = () => open || document.hidden || mouseOver || (keyboardInput.current && launcher.matches(":focus-within"));
     function setPhase(next: Phase) {
       phase = next;
       launcher.dataset.phase = root.dataset.kodyPhase = next;
@@ -37,7 +41,7 @@ export function useKodyVisibility(ref: RefObject<HTMLButtonElement | null>, open
     }
     function schedule() {
       clearTimeout(timer);
-      if (!held()) timer = setTimeout(() => transition(false), 10_000);
+      if (!held()) timer = setTimeout(() => { if (!held()) transition(false); }, 10_000);
     }
     function transition(show: boolean) {
       // Reverse an interrupted dismantle from the current pose, without a jump.
@@ -110,14 +114,42 @@ export function useKodyVisibility(ref: RefObject<HTMLButtonElement | null>, open
       root.dataset.tabHidden = String(document.hidden);
       schedule();
     }
-    const events = ["mouseenter", "mouseleave", "focus", "blur"] as const;
+    function pointerDown(event: PointerEvent) {
+      keyboardInput.current = false;
+      lastPointer.current = event.pointerType;
+      if (event.pointerType !== "mouse") mouseOver = false;
+      if (launcher.contains(event.target as Node)) interact();
+      else if (phase === "visible") schedule();
+    }
+    function keyboard(event: globalThis.KeyboardEvent) {
+      if (event.key !== "Tab") return;
+      keyboardInput.current = true;
+      if (phase === "visible") schedule();
+    }
+    function pointerEnter(event: PointerEvent) {
+      lastPointer.current = event.pointerType;
+      mouseOver = event.pointerType === "mouse";
+      interact();
+    }
+    function pointerLeave() { mouseOver = false; interact(); }
+    const events = ["focus", "blur"] as const;
     events.forEach(event => launcher.addEventListener(event, interact));
+    launcher.addEventListener("pointerenter", pointerEnter);
+    launcher.addEventListener("pointerleave", pointerLeave);
+    launcher.addEventListener("pointercancel", pointerLeave);
+    document.addEventListener("pointerdown", pointerDown, true);
+    document.addEventListener("keydown", keyboard, true);
     document.addEventListener("visibilitychange", visibility);
     reduced.addEventListener("change", visibility);
     visibility();
     return () => {
       cancel(); setPhase("visible");
       events.forEach(event => launcher.removeEventListener(event, interact));
+      launcher.removeEventListener("pointerenter", pointerEnter);
+      launcher.removeEventListener("pointerleave", pointerLeave);
+      launcher.removeEventListener("pointercancel", pointerLeave);
+      document.removeEventListener("pointerdown", pointerDown, true);
+      document.removeEventListener("keydown", keyboard, true);
       document.removeEventListener("visibilitychange", visibility);
       reduced.removeEventListener("change", visibility);
     };
